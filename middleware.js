@@ -1,15 +1,20 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
-// Keeps the Supabase auth session fresh on every request by rewriting
-// the session cookie. Required for magic-link auth to persist.
+// Keeps the Supabase auth session fresh on every request by rewriting the
+// session cookie. Wrapped so that a missing env var or a transient Supabase
+// error degrades gracefully (pages still load and enforce their own auth)
+// instead of crashing the whole site with a 500.
 export async function middleware(request) {
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) return response;
+
+  try {
+    const supabase = createServerClient(url, key, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -22,10 +27,13 @@ export async function middleware(request) {
           );
         },
       },
-    }
-  );
+    });
 
-  await supabase.auth.getUser();
+    await supabase.auth.getUser();
+  } catch {
+    return response;
+  }
+
   return response;
 }
 
