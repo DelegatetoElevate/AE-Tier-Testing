@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AE Tier Testing — preview</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ink:#0E1116; --ink-2:#39414D; --steel:#8A94A2; --line:#DDE1DE;
+  --paper:#F1F2F0; --surface:#FFFFFF;
+  --ae:#E23A2E; --ae-soft:#FDEAE8;          /* AE Fitness red */
+  --info:#2540E8; --info-soft:#EAEDFE;
+  --good:#1B7A4E; --good-soft:#E6F4EC;
+  --amber:#A96A00; --amber-soft:#FFF6E5;
+  /* the wristbands */
+  --t1:#FFFFFF; --t2:#F2C230; --t3:#E23A2E; --t4:#101418;
+  --shadow:0 1px 0 rgba(14,17,22,.04), 0 8px 24px -16px rgba(14,17,22,.25);
+  --mono:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --sans:'Archivo', system-ui, -apple-system, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.45;padding-bottom:60px;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--steel)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.preview-bar{background:#1C1F26;color:#B9C0CA;font-size:11.5px;font-weight:600;padding:7px 24px;display:flex;gap:8px;align-items:center}
+.preview-bar b{color:#fff}
+
+/* ══ WRISTBAND — the signature ══ */
+.band{
+  display:inline-flex;align-items:center;gap:9px;
+  border-radius:999px;padding:5px 14px 5px 6px;
+  font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  border:1px solid var(--line);background:var(--surface);
+  color:var(--ink);            /* never inherit — this sits on light AND dark grounds */
+  white-space:nowrap;
+}
+.band .swatch{width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(14,17,22,.18);flex:none}
+.band.t0{color:var(--steel)}
+.band.ready{color:var(--info);border-color:#C9D2FB;background:var(--info-soft)}
+.band.ready .swatch{background:var(--info-soft);border-color:var(--info);border-style:dashed}
+.band.t0 .swatch{background:repeating-linear-gradient(135deg,#E8EAE8,#E8EAE8 3px,#F5F6F5 3px,#F5F6F5 6px)}
+.band.t1 .swatch{background:var(--t1)}
+.band.t2 .swatch{background:var(--t2)}
+.band.t3 .swatch{background:var(--t3)}
+.band.t4 .swatch{background:var(--t4)}
+.band.big{font-size:15px;padding:9px 22px 9px 10px;letter-spacing:.1em;border-width:1.5px}
+.band.big .swatch{width:34px;height:34px}
+.band.huge{font-size:19px;padding:12px 28px 12px 12px}
+.band.huge .swatch{width:46px;height:46px}
+
+.tier-hero{
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:26px 28px;box-shadow:var(--shadow);display:flex;align-items:center;
+  gap:26px;flex-wrap:wrap;margin-bottom:22px;position:relative;overflow:hidden;
+}
+.tier-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px}
+.tier-hero.t0::before{background:var(--line)}
+.tier-hero.t1::before{background:linear-gradient(#EEE,#CFCFCF)}
+.tier-hero.t2::before{background:var(--t2)}
+.tier-hero.t3::before{background:var(--t3)}
+.tier-hero.t4::before{background:var(--t4)}
+.tier-hero .lede{flex:1;min-width:200px}
+.tier-hero .lede h2{font-size:29px;font-weight:900;letter-spacing:-.03em;line-height:1.05;margin:6px 0 5px}
+.tier-hero .lede p{font-size:13.5px;color:var(--ink-2)}
+.tier-hero .tally{display:flex;gap:7px;align-items:center}
+.tally .cell{
+  width:38px;height:44px;border-radius:8px;border:1px solid var(--line);
+  display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:600;
+  background:var(--surface);color:var(--steel);
+}
+.tally .cell.hit{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tally .cell.q{background:var(--good-soft);border-color:#BFE3CE;color:var(--good)}
+
+/* shell */
+.topbar{background:var(--ink);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.wordmark{font-weight:900;letter-spacing:-.03em;font-size:18px;display:flex;align-items:baseline;gap:9px}
+.wordmark i{font-style:normal;color:var(--ae)}
+.wordmark span{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--steel);letter-spacing:.1em}
+.topbar .spacer{flex:1}
+.me{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600}
+.me .av{width:28px;height:28px;border-radius:7px;background:#2C333D;display:grid;place-items:center;font-size:11px;font-weight:700}
+.me.coach .av{background:var(--ae)}
+.me .role{font-size:9.5px;font-weight:800;letter-spacing:.11em;color:var(--steel);text-transform:uppercase;display:block}
+.signout{background:none;border:1px solid #2C333D;color:var(--steel);border-radius:7px;padding:6px 11px;font-size:12px;font-weight:600}
+.signout:hover{color:#fff;border-color:#4A5461}
+
+nav{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;gap:8px;overflow-x:auto}
+nav button{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);padding:8px 16px;border-radius:999px;font-size:13.5px;font-weight:600;white-space:nowrap;transition:all .12s}
+nav button:hover{border-color:var(--steel);color:var(--ink)}
+nav button[aria-current="page"]{background:var(--ink);border-color:var(--ink);color:#fff}
+nav button:focus-visible{outline:2px solid var(--ae);outline-offset:2px}
+nav .badge{background:var(--ae);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:1px 6px;margin-left:6px;font-family:var(--mono)}
+
+main{max-width:1180px;margin:0 auto;padding:28px 24px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:31px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.page-head p{color:var(--ink-2);font-size:14px;margin-top:5px;max-width:56ch}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.card-head{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.card-head h2{font-size:15px;font-weight:700}
+.card-body{padding:20px}
+
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:13.5px;font-weight:700;transition:opacity .12s}
+.btn:hover{opacity:.88}
+.btn.primary{background:var(--ae);border-color:var(--ae)}
+.btn.go{background:var(--good);border-color:var(--good)}
+.btn.ghost{background:transparent;color:var(--ink-2);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--steel);color:var(--ink)}
+.btn.sm{padding:6px 12px;font-size:12px;border-radius:7px}
+.btn.wide{width:100%}
+.btn:focus-visible{outline:2px solid var(--ae);outline-offset:2px}
+
+.field label{display:block;margin-bottom:6px}
+.inp{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:10px 12px;font-size:15px;font-weight:600;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.inp:focus{outline:none;border-color:var(--ae);box-shadow:0 0 0 3px var(--ae-soft)}
+select.inp,textarea.inp,input[type=email].inp{font-family:var(--sans)}
+textarea.inp{font-weight:500;font-size:14px;min-height:68px;resize:vertical}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:right;padding:11px 12px;border-bottom:1px solid var(--line);font-size:10.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--steel);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;padding-left:20px}
+th:last-child,td:last-child{padding-right:20px}
+td{padding:12px;border-bottom:1px solid var(--line);text-align:right;font-size:14px;font-weight:500}
+tbody tr:last-child td{border-bottom:none}
+td.name{font-weight:700}
+.scroll{overflow-x:auto}
+
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.chip.pr{background:var(--ae-soft);color:var(--ae)}
+.chip.up{background:var(--good-soft);color:var(--good)}
+.chip.down{background:#FDECEC;color:#C0392B}
+.chip.flat{background:var(--paper);color:var(--steel)}
+.chip.pending{background:var(--amber-soft);color:var(--amber)}
+.chip.approved{background:var(--good-soft);color:var(--good)}
+.chip.returned{background:#FDECEC;color:#C0392B}
+.chip.draft{background:var(--paper);color:var(--steel)}
+.chip.miss{background:var(--paper);color:var(--steel)}
+
+/* level pips — shows level per movement */
+.pips{display:inline-flex;gap:3px;vertical-align:middle}
+.pip{width:9px;height:16px;border-radius:2px;background:var(--paper);border:1px solid var(--line)}
+.pip.on1{background:#F0F1F0;border-color:#C9CCC9}
+.pip.on2{background:var(--t2);border-color:#D3A61E}
+.pip.on3{background:var(--t3);border-color:#C22B20}
+.pip.on4{background:var(--t4);border-color:#000}
+
+/* log rows */
+.mv{padding:16px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1.35fr 1.6fr 1.25fr;gap:16px;align-items:start}
+.mv:last-child{border-bottom:none}
+.mv .nm{font-size:14.5px;font-weight:700;display:flex;gap:11px;align-items:flex-start}
+.mv .nm .mv-name{flex:1}
+.mv .nm em{display:block;font-style:normal;font-size:11.5px;color:var(--steel);font-weight:500;margin-top:3px;line-height:1.35}
+.mv-no{
+  flex:none;width:26px;height:26px;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:600;
+  background:var(--paper);border:1.5px solid var(--line);color:var(--steel);margin-top:1px;
+}
+.mv-no.done{background:var(--good);border-color:var(--good);color:#fff;font-size:12px}
+.mv .ins{display:flex;gap:9px;flex-wrap:wrap}
+.mv .ins .field{flex:1;min-width:78px}
+.verdict{font-size:12px;font-family:var(--mono);color:var(--steel);line-height:1.5}
+.verdict .next{display:block;margin-top:5px;color:var(--ink-2)}
+.verdict .next b{color:var(--ink);font-weight:600}
+.seg2{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg2 button{border:none;background:var(--surface);padding:8px 11px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.seg2 button[aria-pressed="true"]{background:var(--ink);color:#fff}
+
+/* three-attempt block for weighted lifts */
+.attempts{display:flex;flex-direction:column;gap:6px}
+.att-head{display:grid;grid-template-columns:22px 1.4fr 1fr;gap:9px;align-items:center;padding:0 2px}
+.attempt{display:grid;grid-template-columns:22px 1.4fr 1fr;gap:9px;align-items:center}
+.att-no{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--steel);text-align:center}
+.att-w{position:relative}
+.att-w .tgt{
+  display:block;margin-top:3px;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;color:#B3B8BF;
+  letter-spacing:.03em;pointer-events:none;
+}
+.att-hint{font-size:11px;color:var(--steel);font-family:var(--mono);margin-top:3px;padding-left:2px}
+.att-exact{font-size:11px;color:var(--info);font-family:var(--mono);margin-top:4px;padding-left:2px;font-weight:600}
+/* the key ask: placeholders MUST look faint next to real values */
+.inp{color:var(--ink)}
+.ghost-ph::placeholder{color:#C4C9CF;font-weight:400;opacity:1}
+.ghost-ph{font-weight:600}
+
+/* log-screen progress: larger pips + progress bar */
+.strip-grid{display:grid;grid-template-columns:1fr 1.35fr;gap:0}
+.strip-main{padding-left:26px}
+.recap{padding-right:26px;border-right:1px solid var(--line)}
+.strip-label{margin-bottom:10px;height:16px;display:flex;align-items:center}
+.recap .eyebrow{margin-bottom:10px}
+.recap-band,.tier-now{margin-bottom:9px;min-height:44px;display:flex;align-items:center}
+.recap-meta{font-size:11.5px;color:var(--steel);font-family:var(--mono)}
+.recap-rule{font-size:13px;color:var(--ink-2);line-height:1.5;margin-top:4px}
+.recap-rule b{color:var(--ink);font-weight:700}
+.recap.first .recap-lede{font-size:13.5px;color:var(--ink-2);line-height:1.5;margin:8px 0 12px}
+.recap.first .recap-rule{margin-top:0}
+.mpips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.mpip{width:26px;height:34px;border-radius:5px;background:var(--paper);border:1px solid var(--line);display:inline-block;flex:none}
+.mpip.sm{width:17px;height:23px;border-radius:4px}
+.mpip.on0{background:#F2F3F2;border-color:var(--line)}
+.mpip.on1{background:#EDEEEE;border-color:#CBCFCB}
+.mpip.on2{background:var(--t2);border-color:#D3A61E}
+.mpip.on3{background:var(--t3);border-color:#C22B20}
+.mpip.on4{background:var(--t4);border-color:#000}
+.mpip-key{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:600;color:var(--steel);font-family:var(--mono)}
+.mpip-key span{display:inline-flex;align-items:center;gap:5px}
+.mpip-key .mpip{width:13px;height:13px;border-radius:3px}
+
+.pbar-wrap{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.pbar-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:700;margin-bottom:8px}
+.pbar-head .num{font-family:var(--mono);color:var(--ink-2)}
+.pbar{display:flex;gap:5px}
+.pbar-seg{flex:1;height:12px;border-radius:4px;background:var(--paper);border:1px solid var(--line)}
+.pbar-seg.filled{background:var(--good);border-color:var(--good)}
+.pbar-note{font-size:12.5px;color:var(--ink-2);margin-top:9px;font-weight:500}
+
+/* weighted lift: level buttons + workup */
+.lvl-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.lvl-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  border:1.5px solid var(--line);background:var(--surface);border-radius:10px;
+  padding:9px 6px;transition:all .12s;
+}
+.lvl-btn:hover{border-color:var(--steel)}
+.lvl-btn-tier{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--steel)}
+.lvl-btn-wt{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--ink)}
+.lvl-btn-wt small{font-size:10px;color:var(--steel);font-weight:400;margin-left:2px}
+.lvl-btn.on{border-color:var(--ink);background:var(--ink)}
+.lvl-btn.on .lvl-btn-tier{color:#fff}
+.lvl-btn.on .lvl-btn-wt{color:#fff}
+.lvl-btn.on .lvl-btn-wt small{color:#B9C0CA}
+.lvl-btn.on.t2{border-color:#D3A61E;background:var(--t2)}
+.lvl-btn.on.t2 .lvl-btn-tier,.lvl-btn.on.t2 .lvl-btn-wt{color:#3a2c00}
+.lvl-btn.on.t2 .lvl-btn-wt small{color:#7a5f00}
+.lvl-btn.on.t3{border-color:#C22B20;background:var(--t3)}
+.lvl-btn.on.t3 .lvl-btn-tier,.lvl-btn.on.t3 .lvl-btn-wt{color:#fff}
+.lvl-btn.on.t3 .lvl-btn-wt small{color:#ffd9d5}
+.lvl-btn.on.t4{border-color:#000;background:var(--t4)}
+.lvl-btn.on.t4 .lvl-btn-tier,.lvl-btn.on.t4 .lvl-btn-wt{color:#fff}
+
+.workup{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.workup-head{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:10px}
+.workup-rows{display:flex;flex-direction:column;gap:8px}
+.wk{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:center}
+.wk-tag{font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;flex-direction:column}
+.wk-tag em{font-style:normal;font-size:10.5px;color:var(--steel);font-family:var(--mono);font-weight:400;margin-top:1px}
+.wk.qual .wk-tag{color:var(--ink);font-weight:700}
+.wk.qual input{border-color:var(--ink);font-weight:700}
+.qual-verdict{margin-top:11px;font-size:13px;font-family:var(--mono);line-height:1.5}
+.qv-muted{color:var(--steel)}
+.qv-hit{font-weight:700;padding:2px 8px;border-radius:6px}
+.qv-hit.t1{background:#EDEEEE;color:var(--ink)}
+.qv-hit.t2{background:var(--t2);color:#3a2c00}
+.qv-hit.t3{background:var(--t3);color:#fff}
+.qv-hit.t4{background:var(--t4);color:#fff}
+.qv-next{color:var(--steel);margin-left:8px}
+
+.switch-warn{
+  margin-top:12px;border:1.5px solid var(--ae);background:var(--ae-soft);
+  border-radius:11px;padding:14px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+}
+.sw-body{flex:1;min-width:200px;font-size:13px;color:#8E2A20;line-height:1.5}
+.sw-body b{display:block;color:var(--ae);font-size:13.5px;margin-bottom:3px}
+.sw-actions{display:flex;gap:8px}
+
+.autosave{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--steel);font-family:var(--mono)}
+.autosave .dot{width:7px;height:7px;border-radius:50%;background:var(--steel)}
+.autosave .dot.saved{background:var(--good)}
+
+.banner{border-radius:12px;padding:15px 18px;margin-bottom:18px;display:flex;gap:13px;align-items:flex-start;font-size:13.5px}
+.banner.wait{background:var(--amber-soft);border:1px solid #F0DCB4;color:#7A4E00}
+.banner.ok{background:var(--good-soft);border:1px solid #BFE3CE;color:#125C39}
+.banner.back{background:#FDECEC;border:1px solid #F3CFCF;color:#8E2A20}
+.banner.warn{background:var(--ae-soft);border:1px solid #F5C6C1;color:#992018}
+.banner b{display:block;margin-bottom:2px}
+.banner .ic{font-size:16px}
+
+.appr{border:1px solid var(--line);border-radius:13px;background:var(--surface);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
+.appr-head{padding:15px 18px;display:flex;align-items:center;gap:13px;flex-wrap:wrap;border-bottom:1px solid var(--line);background:#FCFDFC}
+.appr-head .who{flex:1;min-width:140px}
+.appr-head .who b{display:block;font-size:15px;font-weight:700}
+.appr-head .who em{display:block;font-style:normal;font-size:11.5px;color:var(--steel);font-family:var(--mono);margin-top:2px}
+.appr-actions{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:9px;align-items:center;flex-wrap:wrap;background:#FCFDFC}
+.appr-actions .spacer{flex:1}
+.note-box{padding:0 18px 14px}
+
+.empty-state{padding:44px 20px;text-align:center;color:var(--steel)}
+.empty-state strong{display:block;color:var(--ink);font-size:16px;font-weight:700;margin-bottom:6px}
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.stat-row:last-child{border-bottom:none}
+.stat-row .k{font-size:13px;color:var(--ink-2);font-weight:500}
+.stat-row .v{font-family:var(--mono);font-size:16px;font-weight:600}
+
+.auth-wrap{min-height:86vh;display:flex;align-items:center;justify-content:center;padding:28px}
+.auth{width:100%;max-width:415px}
+.auth .mark{font-weight:900;font-size:28px;letter-spacing:-.035em}
+.auth .mark i{font-style:normal;color:var(--ae)}
+.auth .mark span{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--steel);letter-spacing:.11em;display:block;margin-top:7px}
+.auth-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:var(--shadow);margin-top:22px}
+.auth-card h2{font-size:17px;font-weight:700;margin-bottom:5px}
+.auth-card p{font-size:13.5px;color:var(--ink-2);margin-bottom:18px}
+.demo{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line)}
+.acct{width:100%;text-align:left;display:flex;align-items:center;gap:11px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;margin-bottom:7px}
+.acct:hover{border-color:var(--ae);background:var(--ae-soft)}
+.acct .av{width:32px;height:32px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12.5px}
+.acct.coach .av{background:var(--ae)}
+.acct .who{flex:1;min-width:0}
+.acct .who b{display:block;font-size:13.5px}
+.acct .who em{display:block;font-style:normal;font-size:11.5px;color:var(--steel);font-family:var(--mono)}
+.inbox{background:var(--ae-soft);border:1px solid #F5C6C1;border-radius:12px;padding:16px;margin-top:16px}
+.inbox .eyebrow{color:var(--ae);margin-bottom:6px}
+.inbox p{font-size:13px;margin-bottom:12px}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:all .22s;z-index:50}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:860px){
+  .grid-2{grid-template-columns:1fr}
+  .mv{grid-template-columns:1fr;gap:10px}
+  .strip-grid{grid-template-columns:1fr;gap:20px}
+  .strip-main{padding-left:0}
+  .recap{padding-right:0;border-right:none;border-bottom:1px solid var(--line);padding-bottom:18px}
+  h1{font-size:25px}
+  main{padding:20px 16px}
+  nav,.topbar,.preview-bar{padding-left:16px;padding-right:16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   THE RUBRIC — straight off the AE Tier Testing Standards sheet.
+   Thresholds are the LOWER bound of each band, so ties go up:
+   10 push-ups clears the "10-15" Level 2 band.
+   ═══════════════════════════════════════════════════════════ */
+const TIERS = [
+  {n:1, name:'Rookie',    band:'White'},
+  {n:2, name:'Contender', band:'Yellow'},
+  {n:3, name:'Pro',       band:'Red'},
+  {n:4, name:'MVP',       band:'Black'}
+];
+const TIER0 = 'Recruit';
+
+const STD = {
+  womens: {
+    label:"Women's",
+    qualify: 5,                 // 5 of 7
+    movements: [
+      {id:'leg_press',     name:'Leg Press',      type:'bwLift', reps:10, mult:[1.5,2.0,2.5,3.0]},
+      {id:'deadlift',      name:'Deadlift',       type:'bwLift', reps:10, mult:[0.75,1.0,1.25,1.5]},
+      {id:'push_up',       name:'Push Up',        type:'pushup', toes:[5,10,15,20], knees:[12,15,20,25]},
+      {id:'inverted_row',  name:'Inverted Row',   type:'loadRow',reps:8,  add:[0,10,15,20]},
+      {id:'lat_pull_down', name:'Lat Pull Down',  type:'bwLift', reps:10, mult:[0.6,0.8,1.0,1.25]},
+      {id:'plank',         name:'Plank Challenge',type:'plank',  hold:60, add:[0,10,20,30]},
+      {id:'crazy8',        name:'Crazy 8 HIIT',   type:'forTime',sec:[300,240,180,150]}
+    ]
+  },
+  mens: {
+    label:"Men's",
+    qualify: 6,                 // 6 of 8
+    movements: [
+      {id:'leg_press',     name:'Leg Press',      type:'bwLift', reps:10, mult:[1.5,2.0,2.5,3.0]},
+      {id:'deadlift',      name:'Deadlift',       type:'bwLift', reps:10, mult:[0.75,1.0,1.25,1.5]},
+      {id:'push_up',       name:'Push Up',        type:'pushup', toes:[5,10,15,20], knees:[12,15,20,25]},
+      {id:'bench_press',   name:'Bench Press',    type:'bwLift', reps:10, mult:[0.6,0.8,1.0,1.25]},
+      {id:'inverted_row',  name:'Inverted Row',   type:'loadRow',reps:8,  add:[0,10,15,20]},
+      {id:'lat_pull_down', name:'Lat Pull Down',  type:'bwLift', reps:10, mult:[0.6,0.8,1.0,1.25]},
+      {id:'plank',         name:'Plank Challenge',type:'plank',  hold:90, add:[0,10,20,30]},
+      {id:'crazy8',        name:'Crazy 8 HIIT',   type:'forTime',sec:[240,180,150,120]}
+    ]
+  }
+};
+
+const QUARTERS = ['2025-Q3','2025-Q4','2026-Q1','2026-Q2','2026-Q3'];
+const OPEN_Q = '2026-Q3';
+const KEY = 'ae:tier:v4';
+
+const qLabel = q => "Q"+q.slice(-1)+" '"+q.slice(2,4);
+const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('');
+const mmss = s => `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
+const dateStr = t => new Date(t).toLocaleDateString([], {month:'short', day:'numeric'});
+const timeStr = t => new Date(t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+
+/* ── LEVEL FOR ONE MOVEMENT ──────────────────────────────────
+   Weighted lifts: the athlete taps the level they're attempting.
+   That IS the scored level (they load the exact weight for it).
+   Returns 0 (Recruit) through 4 (MVP), plus what's needed next. */
+function bestAttempt(m, e, bw){
+  // kept for the results view: report the qualifying weight actually done
+  if(!e) return {weight:0, reps:0};
+  if(e.level) return {weight: Math.round(m.mult[e.level-1]*bw*10)/10, reps: m.reps, level:e.level};
+  return {weight:0, reps:0};
+}
+
+function levelOf(m, e, bw){
+  if(!e || m.MISSING) return {lvl:0, why:'', next:null};
+  const hit = (i)=>{
+    switch(m.type){
+      case 'bwLift': {
+        // if they typed a qualifying weight, score that; otherwise the picked level
+        if(e.qualWeight!=null && e.qualWeight!=='') return levelFromWeight(m, e.qualWeight, bw) >= (i+1);
+        return (e.level||0) >= (i+1);
+      }
+      case 'pushup': {
+        const bands = e.variant==='knees' ? m.knees : m.toes;
+        return (e.reps||0) >= bands[i];
+      }
+      case 'loadRow':
+        return (e.reps||0) >= m.reps && (e.added||0) >= m.add[i];
+      case 'plank':
+        return (e.seconds||0) >= m.hold && (e.added||0) >= m.add[i];
+      case 'forTime':
+        return (e.seconds||0) > 0 && e.seconds <= m.sec[i];
+    }
+  };
+  let lvl = 0;
+  for(let i=0;i<4;i++) if(hit(i)) lvl = i+1;
+  const next = lvl<4 ? need(m, lvl, bw, e) : null;
+  return {lvl, next};
+}
+
+/* What it would take to reach the next level on this movement */
+function need(m, lvl, bw, e){
+  const i = lvl;                       // index of the next level up
+  switch(m.type){
+    case 'bwLift':
+      if(!m.mult) return 'Standard not set';
+      return `${Math.round(m.mult[i]*bw)} lb × ${m.reps} (${m.mult[i]}× BW)`;
+    case 'pushup': {
+      const bands = e?.variant==='knees' ? m.knees : m.toes;
+      return `${bands[i]} reps ${e?.variant==='knees'?'on knees':'on toes'}`;
+    }
+    case 'loadRow':
+      return m.add[i] ? `${m.reps} reps with +${m.add[i]} lb` : `${m.reps} reps at 30–45°`;
+    case 'plank':
+      return m.add[i] ? `${m.hold}s hold with +${m.add[i]} lb` : `${m.hold}s bodyweight hold`;
+    case 'forTime':
+      return `Under ${mmss(m.sec[i])}`;
+  }
+}
+
+/* ── THE TIER: highest level cleared on enough movements ────── */
+function tierOf(test, prof){
+  const std = STD[prof.standard];
+  const per = {};
+  std.movements.forEach(m => per[m.id] = levelOf(m, test.entries[m.id], test.bodyweight));
+  const counts = [1,2,3,4].map(L =>
+    std.movements.filter(m => per[m.id].lvl >= L).length);
+  let tier = 0;
+  counts.forEach((c,i)=>{ if(c >= std.qualify) tier = i+1; });
+  return {per, counts, tier, movements: std.movements,
+          qualify: std.qualify,
+          total: std.movements.length,
+          scorable: std.movements.filter(m=>!m.MISSING).length};
+}
+
+const tierName = t => t===0 ? 'Level 0' : TIERS[t-1].name;
+const bandOf = (t, cls='') => `<span class="band t${t} ${cls}">
+  <span class="swatch"></span>${t===0?`Level 0 · ${TIER0}`:`Level ${t} · ${TIERS[t-1].name}`}</span>`;
+
+/* Has the athlete logged anything for this movement yet? (drives the live tier verdict) */
+function hasEntry(m, e){
+  if(!e) return false;
+  if(m.type==='bwLift') return !!e.level;
+  if(m.type==='pushup') return !!e.reps;
+  if(m.type==='loadRow') return !!e.reps || !!e.added;
+  if(m.type==='plank')   return !!e.seconds || !!e.added;
+  if(m.type==='forTime') return !!e.seconds;
+  return false;
+}
+/* Is this movement actually COMPLETE? (drives the checkmark)
+   For a lift, picking a level isn't enough — they must enter the qualifying weight
+   they actually lifted. Warm-ups stay optional. */
+function isComplete(m, e){
+  if(!e) return false;
+  if(m.type==='bwLift'){
+    return !!e.level && e.qualWeight!=null && e.qualWeight!=='' && Number(e.qualWeight)>0;
+  }
+  return hasEntry(m, e);
+}
+/* Any movement at all logged this test? */
+function testStarted(entries, prof){
+  return STD[prof.standard].movements.some(m => hasEntry(m, entries[m.id]));
+}
+
+/* ═══════════ STATE ═══════════ */
+let S=null, session=null, view='log', draft={}, authStage='enter', authEmail='';
+let openAppr=null, noteFor=null, lastAction=null, hWho=null, hQ='all', bq=OPEN_Q, stdView='mens';
+let confirmLevelSwitch=null;   // {id, L} while a level-change confirmation is showing
+
+async function load(){
+  try{ S = JSON.parse((await window.storage.get(KEY)).value); }
+  catch(e){ S = seed(); await save(); }
+  if(!S.drafts) S.drafts={};
+}
+async function save(){ try{ await window.storage.set(KEY, JSON.stringify(S)); }catch(e){} }
+
+function seed(){
+  let s=20260715;
+  const rnd=()=>(s=(s*1664525+1013904223)%4294967296)/4294967296;
+  const people=[
+    ['Allen Elliott','allen@allenelliott.fit','coach','mens'],
+    ['Carter LaPrad','carter@example.com','member','mens'],
+    ['Maya Okafor','maya@example.com','member','womens'],
+    ['Diego Restrepo','diego@example.com','member','mens'],
+    ['Nina Halvorsen','nina@example.com','member','womens'],
+    ['Tobias Reed','tobias@example.com','member','mens'],
+    ['Priya Raghunathan','priya@example.com','member','womens'],
+    ['Sam Whitlock','sam@example.com','member','mens'],
+    ['Elena Vasquez','elena@example.com','member','womens'],
+    ['Marcus Byrd','marcus@example.com','member','mens']
+  ];
+  const profiles = people.map((p,i)=>({
+    id:'p'+i, name:p[0], email:p[1], role:p[2], standard:p[3],
+    _bw: p[3]==='mens' ? 155+Math.round(rnd()*35) : 132+Math.round(rnd()*38),  // men 155-190, women 132-170
+    _s: .28+rnd()*.55   // strength 0.28-0.83: a real spread from Recruit to MVP, not everyone maxed
+  }));
+  const tests=[];
+  // pick a level 1-4 for a weighted lift from a 0-1 strength score, with the workup weights filled
+  const lift=(mult, str, bw)=>{
+    const ratio = mult[0] + str*(mult[3]-mult[0])*1.15;   // how strong relative to the chart
+    let level=0; for(let i=0;i<4;i++) if(ratio>=mult[i]) level=i+1;
+    if(!level) return {level:0};
+    const qual = Math.round(mult[level-1]*bw*10)/10;
+    return {level, workup:[Math.round(qual*0.5), Math.round(qual*0.75)]};
+  };
+  const mkEntries=(prof,str,bw)=>{
+    const E={
+      leg_press:    lift([1.5,2.0,2.5,3.0], str, bw),
+      deadlift:     lift([0.75,1.0,1.25,1.5], str, bw),
+      push_up:{variant: rnd()>.35?'toes':'knees', reps: Math.round(6+str*20)},
+      inverted_row:{reps:8+Math.round(rnd()*3), added: [0,0,10,10,15,20][Math.floor(str*6)]||0},
+      lat_pull_down:lift([0.6,0.8,1.0,1.25], str, bw),
+      plank:{seconds: Math.round(55+str*55), added:[0,0,10,20,20,30][Math.floor(str*6)]||0},
+      crazy8:{seconds: Math.round(330 - str*180)}
+    };
+    if(prof.standard==='mens') E.bench_press=lift([0.6,0.8,1.0,1.25], str, bw);
+    return E;
+  };
+  profiles.filter(p=>p.role==='member').forEach(a=>{
+    let bw=a._bw, str=a._s;
+    QUARTERS.slice(0,4).forEach(q=>{
+      str = Math.min(.9, str*(1+0.03+rnd()*0.04));   // gentler growth, capped below max
+      bw += Math.round((rnd()-0.45)*4);
+      tests.push({profileId:a.id, quarter:q, bodyweight:bw, status:'approved',
+        approvedBy:'p0', approvedAt: Date.now()-((4-QUARTERS.indexOf(q))*90*864e5),
+        entries: mkEntries(a,str,bw)});
+    });
+    a._lb=bw; a._ls=str;
+  });
+  ['p3','p5','p8'].forEach(id=>{
+    const a=profiles.find(p=>p.id===id);
+    const str=Math.min(.99,a._ls*1.06), bw=a._lb+2;
+    tests.push({profileId:id, quarter:OPEN_Q, bodyweight:bw, status:'submitted',
+      submittedAt: Date.now()-Math.round(rnd()*3*864e5), entries: mkEntries(a,str,bw)});
+  });
+  profiles.forEach(p=>{delete p._bw;delete p._s;delete p._lb;delete p._ls});
+  return {profiles, tests, drafts:{}};
+}
+
+/* ═══════════ LOOKUPS ═══════════ */
+const P = id => S.profiles.find(p=>p.id===id);
+const meP = () => P(session.id);
+const isCoach = () => meP().role==='coach';
+const testOf = (pid,q) => S.tests.find(t=>t.profileId===pid && t.quarter===q);
+const historyOf = pid => QUARTERS.map(q=>testOf(pid,q)).filter(Boolean);
+const approvedOf = pid => historyOf(pid).filter(t=>t.status==='approved');
+const queue = () => S.tests.filter(t=>t.status==='submitted').sort((a,b)=>a.submittedAt-b.submittedAt);
+const currentTier = pid => { const a=approvedOf(pid); return a.length ? tierOf(a.at(-1), P(pid)).tier : 0; };
+
+/* best-ever level per movement */
+function bestLevels(pid){
+  const prof=P(pid), out={};
+  STD[prof.standard].movements.forEach(m=>out[m.id]={lvl:0,q:null});
+  approvedOf(pid).forEach(t=>{
+    const tr = tierOf(t, prof);
+    STD[prof.standard].movements.forEach(m=>{
+      if(tr.per[m.id].lvl > out[m.id].lvl) out[m.id]={lvl:tr.per[m.id].lvl, q:t.quarter};
+    });
+  });
+  return out;
+}
+
+/* ═══════════ RENDER ═══════════ */
+function render(){
+  document.getElementById('root').innerHTML = session ? shell() : authScreen();
+  wire();
+}
+
+function authScreen(){
+  const card = authStage==='enter' ? `
+    <div class="auth-card">
+      <h2>Sign in</h2>
+      <p>We'll email you a link. No password to remember, none to forget.</p>
+      <div class="field" style="margin-bottom:13px">
+        <label class="eyebrow">Email</label>
+        <input class="inp" type="email" id="email" placeholder="you@example.com" value="${authEmail}">
+      </div>
+      <button class="btn primary wide" id="sendLink">Email me a link</button>
+      <div class="demo">
+        <div class="eyebrow" style="margin-bottom:9px">Preview — sign in as</div>
+        ${[0,1,2,4].map(i=>S.profiles[i]).map(p=>`
+          <button class="acct ${p.role}" data-as="${p.id}">
+            <span class="av">${initials(p.name)}</span>
+            <span class="who"><b>${p.name}</b><em>${p.role==='coach'?'coach':STD[p.standard].label+' standard'}</em></span>
+            ${p.role==='member'?bandOf(currentTier(p.id)):'<span class="chip pr">Coach</span>'}
+          </button>`).join('')}
+      </div>
+    </div>` : `
+    <div class="auth-card">
+      <h2>Check your inbox</h2>
+      <p>A sign-in link is on its way to <strong>${authEmail}</strong>. It expires in an hour.</p>
+      <div class="inbox">
+        <div class="eyebrow">In the preview, the link lands here</div>
+        <p>The real one arrives in your email.</p>
+        <button class="btn primary wide" id="openLink">Open the sign-in link →</button>
+      </div>
+      <button class="btn ghost wide" id="backToEmail" style="margin-top:11px">Use a different email</button>
+    </div>`;
+  return `
+  <div class="preview-bar">◍ <b>Preview.</b> No database, no emails — but the tier maths is the real rubric.</div>
+  <div class="auth-wrap"><div class="auth">
+    <div class="mark">Tier Testing<i>.</i><span>ALLEN ELLIOTT FITNESS — HOW FIT ARE YOU REALLY?</span></div>
+    ${card}
+  </div></div>`;
+}
+
+function shell(){
+  const me=meP();
+  const views = isCoach()
+    ? [['approvals','Approvals'],['board','Leaderboard'],['history','Athletes'],['standards','Standards']]
+    : [['log','Log a test'],['record','My tier'],['board','Leaderboard'],['history','History'],['standards','Standards']];
+  const pending = queue().length;
+  return `
+  <div class="preview-bar">◍ <b>Preview.</b> No database, no emails — but the tier maths is the real rubric.</div>
+  <div class="topbar">
+    <div class="wordmark">Tier Testing<i>.</i> <span>ALLEN ELLIOTT FITNESS</span></div>
+    <div class="spacer"></div>
+    ${!isCoach()?bandOf(currentTier(session.id)):''}
+    <div class="me ${me.role}">
+      <span class="av">${initials(me.name)}</span>
+      <span>${me.name}<span class="role">${isCoach()?'coach':STD[me.standard].label}</span></span>
+    </div>
+    <button class="signout" id="signout">Sign out</button>
+  </div>
+  <nav>${views.map(([id,l])=>`<button data-view="${id}" ${view===id?'aria-current="page"':''}>${l}${
+    id==='approvals'&&pending?`<span class="badge">${pending}</span>`:''}</button>`).join('')}</nav>
+  <main>${
+    view==='log'?viewLog(): view==='record'?viewRecord():
+    view==='board'?viewBoard(): view==='approvals'?viewApprovals():
+    view==='standards'?viewStandards(): viewHistory()
+  }</main>`;
+}
+
+/* ── LOG A TEST ── */
+function viewLog(){
+  const pid=session.id, me=meP();
+
+  if(!me.standard) return `
+    <div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)}</div>
+      <h1>Waiting on your coach</h1></div></div>
+    <div class="banner wait"><span class="ic">◷</span><span>
+      <b>No testing standard assigned yet</b>
+      Men's and women's standards are different, and a coach decides which one you test against.
+      Ask a coach to set yours and this page opens up.</span></div>`;
+
+  const std=STD[me.standard];
+  const t=testOf(pid,OPEN_Q);
+
+  if(t && (t.status==='approved'||t.status==='submitted')){
+    const tr=tierOf(t,me);
+    const done = t.status==='approved';
+    return `<div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)}</div>
+      <h1>${done?'Tier awarded':'Submitted'}</h1></div></div>
+      <div class="banner ${done?'ok':'wait'}"><span class="ic">${done?'✓':'◷'}</span><span>
+        <b>${done?`${P(t.approvedBy).name} signed this off on ${dateStr(t.approvedAt)}`:`Waiting on a coach — sent ${dateStr(t.submittedAt)}`}</b>
+        ${done?`You cleared ${tr.counts[Math.max(tr.tier-1,0)]||tr.counts[0]} of ${tr.scorable} movements. Your tier is ${tierName(tr.tier)}.`
+              :`Your tier is provisional until a coach approves it.`}</span></div>
+      ${tierHero(tr, me, t)}
+      <div class="card"><div class="card-body" style="padding-top:6px;padding-bottom:6px">${resultRows(tr,me,t)}</div></div>
+      ${!done?`<button class="btn ghost sm" id="unsubmit" style="margin-top:14px">Pull it back and edit</button>`:''}`;
+  }
+
+  if(!draft.quarter){
+    const saved=S.drafts[pid], last=approvedOf(pid).at(-1);
+    if(t && t.status==='returned'){
+      /* Sent back by a coach — put their numbers back in the form, not a blank one */
+      draft = {quarter:OPEN_Q, bodyweight:t.bodyweight,
+               entries: JSON.parse(JSON.stringify(t.entries)), savedAt:null};
+    } else {
+      draft = (saved&&saved.quarter===OPEN_Q) ? JSON.parse(JSON.stringify(saved)) : {
+        quarter:OPEN_Q, bodyweight:last?.bodyweight??'', entries:{push_up:{variant:'toes'}}, savedAt:null
+      };
+    }
+  }
+  const bw = Number(draft.bodyweight)||0;
+  const returned = t && t.status==='returned';
+
+  const total = std.movements.length;
+  const rows = std.movements.map((m, idx)=>{
+    const e = draft.entries[m.id]||{};
+    const r = bw ? levelOf(m,e,bw) : {lvl:0,next:null};
+    let ins='';
+    if(m.type==='bwLift') ins = liftAttempts(m, e, bw);
+    if(m.type==='pushup'){
+      const bands = e.variant==='knees' ? m.knees : m.toes;
+      ins=`
+      <div class="field" style="flex:0 0 auto"><label class="eyebrow">Style</label>
+        <div class="seg2">
+          <button data-var="${m.id}" data-v="toes" aria-pressed="${e.variant!=='knees'}">On toes</button>
+          <button data-var="${m.id}" data-v="knees" aria-pressed="${e.variant==='knees'}">On knees</button>
+        </div></div>
+      <div class="field"><label class="eyebrow">Reps <span style="color:var(--steel);font-weight:400;text-transform:none;letter-spacing:0">L1–L4: ${bands.join(' / ')}</span></label>
+        <input class="inp ghost-ph" type="number" data-m="${m.id}" data-f="reps" value="${e.reps??''}" placeholder="${bands[0]}"></div>`;
+    }
+    if(m.type==='loadRow') ins=`
+      <div class="field"><label class="eyebrow">Reps</label><input class="inp ghost-ph" type="number" data-m="${m.id}" data-f="reps" value="${e.reps??''}" placeholder="${m.reps}"></div>
+      <div class="field"><label class="eyebrow">Added (lb)</label><input class="inp ghost-ph" type="number" data-m="${m.id}" data-f="added" value="${e.added??''}" placeholder="0"></div>`;
+    if(m.type==='plank') ins=`
+      <div class="field"><label class="eyebrow">Hold (sec)</label><input class="inp ghost-ph" type="number" data-m="${m.id}" data-f="seconds" value="${e.seconds??''}" placeholder="${m.hold}"></div>
+      <div class="field"><label class="eyebrow">Added (lb)</label><input class="inp ghost-ph" type="number" data-m="${m.id}" data-f="added" value="${e.added??''}" placeholder="0"></div>`;
+    if(m.type==='forTime'){
+      const mins = e.seconds ? Math.floor(e.seconds/60) : '';
+      const secs = e.seconds ? e.seconds%60 : '';
+      ins=`
+      <div class="field"><label class="eyebrow">Minutes</label><input class="inp ghost-ph" type="number" min="0" data-m="${m.id}" data-f="mins" value="${mins}" placeholder="0"></div>
+      <div class="field"><label class="eyebrow">Seconds</label><input class="inp ghost-ph" type="number" min="0" max="59" data-m="${m.id}" data-f="secs" value="${secs}" placeholder="00"></div>`;
+    }
+
+    const verdict = m.MISSING
+      ? `<span class="chip miss">No standard set</span><span class="next">This movement can't be scored until a coach fills in the Bench Press standards.</span>`
+      : !bw ? `<span style="color:var(--steel)">Enter bodyweight first</span>`
+      : !hasEntry(m, draft.entries[m.id]) ? `<span class="chip flat">Not entered</span><span class="next">Log your result to score this movement.</span>`
+      : `${bandOf(r.lvl)}${r.next?`<span class="next">Next level: <b>${r.next}</b></span>`:'<span class="next">Max level reached — nothing higher to hit.</span>'}`;
+
+    const done = bw && !m.MISSING && isComplete(m, draft.entries[m.id]);
+    return `<div class="mv" data-row="${m.id}">
+      <div class="nm">
+        <span class="mv-no ${done?'done':''}">${done?'✓':idx+1}</span>
+        <span class="mv-name">${m.name}<em>${standardLine(m,bw)}</em></span>
+      </div>
+      <div class="ins">${ins}</div>
+      <div class="verdict">${verdict}</div>
+    </div>`;
+  }).join('');
+
+  const tr = bw ? tierOf({entries:draft.entries, bodyweight:bw}, me) : null;
+  if(tr) tr._entries = draft.entries;
+
+  return `
+  <div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)} · ${std.label} standard</div>
+    <h1>Log your test</h1>
+    <p>Saves as you type. Clear <b>${std.qualify} of ${std.movements.length}</b> movements at a level and that's your tier.</p></div></div>
+  ${returned?`<div class="banner back"><span class="ic">↩</span><span>
+    <b>${P(t.approvedBy).name} sent this back on ${dateStr(t.returnedAt||Date.now())}</b>
+    <span style="display:block;font-size:14.5px;font-weight:600;margin:7px 0 8px;padding:10px 13px;background:rgba(255,255,255,.65);border-radius:8px;border-left:3px solid #C0392B">
+      “${t.coachNote}”</span>
+    Your numbers are back in the form below — fix what needs fixing and send it again.
+    Nothing is on the leaderboard, and no tier has been awarded.</span></div>`:''}
+  ${std.movements.some(m=>m.MISSING)?`<div class="banner warn"><span class="ic">⚠</span><span>
+    <b>Bench Press has no standards</b>Levels 2–4 are blank on the men's sheet, so it can't count toward a tier yet.
+    You need ${std.qualify} at a level to tier — but only ${tr?tr.scorable:7} movements can actually be scored.</span></div>`:''}
+
+  <div class="card" style="margin-bottom:16px"><div class="card-body" style="display:flex;gap:18px;align-items:end;flex-wrap:wrap">
+    <div class="field" style="width:160px">
+      <label class="eyebrow">Bodyweight (lb) — required</label>
+      <input class="inp" type="number" id="bw" value="${draft.bodyweight}" placeholder="0">
+    </div>
+    <div style="flex:1"></div>
+    <div class="autosave" id="autosave">${draft.savedAt
+      ? `<span class="dot saved"></span>Saved ${timeStr(draft.savedAt)}`
+      : `<span class="dot"></span>Autosave on`}</div>
+    <button class="btn primary" id="submitTest">${returned?'Fix and resubmit':'Submit for approval'}</button>
+  </div></div>
+
+  ${tr?tallyStrip(tr, pid):""}
+  <div class="card">
+    <div class="card-head"><h2>The ${total} movements</h2>
+      <span class="eyebrow">${bw?`${std.movements.filter(m=>!m.MISSING && isComplete(m, draft.entries[m.id])).length} of ${total} logged`:`Enter bodyweight to begin`}</span></div>
+    <div class="card-body" style="padding-top:4px;padding-bottom:6px">${rows}</div>
+  </div>`;
+}
+
+/* Target weights for the three attempt boxes.
+   Aims one, two, three levels above whatever the athlete has already cleared,
+   so the suggestions never go stale. NO rounding — the exact required
+   load is shown (multiplier × bodyweight), and the athlete loads plates
+   as they see fit on the day. */
+function attemptTargets(m, e, bw){
+  if(!bw || !m.mult) return [null,null,null];
+  const cleared = e ? (bestAttempt(m,e,bw) ? (()=>{ // current level from best attempt
+      const s=bestAttempt(m,e,bw); const ratio=s&&s.weight?s.weight/bw:0;
+      let l=0; for(let i=0;i<4;i++) if(ratio>=m.mult[i]) l=i+1; return l;
+    })() : 0) : 0;
+  return [0,1,2].map(step=>{
+    const idx = cleared + step;                 // index into mult[] for L(cleared+step+1)
+    if(idx>3) return null;                       // already past MVP on this box
+    const exact = Math.round(m.mult[idx]*bw*10)/10;   // exact load, one decimal — no rounding to plates
+    return {lvl: idx+1, weight: exact, exact, mult: m.mult[idx]};
+  });
+}
+
+/* Weighted lift: pick the level you're attempting, then log your workup weights.
+   The picked level is what scores; workups are a loading guide you can edit. */
+function liftAttempts(m, e, bw){
+  const picked = e && e.level ? e.level : 0;
+  const qualWeight = picked ? Math.round(m.mult[picked-1]*bw*10)/10 : 0;
+
+  // What level is actually scoring right now: a typed qualifying weight wins over the tapped button.
+  const typedQual = (e && e.qualWeight!=null && e.qualWeight!=='') ? e.qualWeight : null;
+  const activeLevel = typedQual!=null ? levelFromWeight(m, typedQual, bw) : picked;
+
+  const buttons = [1,2,3,4].map(L=>{
+    const w = Math.round(m.mult[L-1]*bw*10)/10;
+    return `<button type="button" class="lvl-btn t${L} ${activeLevel===L?'on':''}" data-pick="${m.id}" data-lvl="${L}">
+      <span class="lvl-btn-tier">L${L}</span>
+      <span class="lvl-btn-wt">${w}<small>lb</small></span>
+    </button>`;
+  }).join('');
+
+  let workup = '';
+  if(picked){
+    const w50 = Math.round(qualWeight*0.5*10)/10;
+    const w75 = Math.round(qualWeight*0.75*10)/10;
+    const wk = (e.workup)||[];
+    const qualNow = (e.qualWeight!=null && e.qualWeight!=='') ? e.qualWeight : qualWeight;
+    const lvlNow = levelFromWeight(m, qualNow, bw);
+    workup = `<div class="workup">
+      <div class="workup-head">Workup — enter what you actually loaded</div>
+      <div class="workup-rows">
+        <div class="wk"><span class="wk-tag">Warm-up 1<em>50%</em></span>
+          <input class="inp ghost-ph" type="number" data-m="${m.id}" data-wk="0" value="${wk[0]??''}" placeholder="${w50}"></div>
+        <div class="wk"><span class="wk-tag">Warm-up 2<em>75%</em></span>
+          <input class="inp ghost-ph" type="number" data-m="${m.id}" data-wk="1" value="${wk[1]??''}" placeholder="${w75}"></div>
+        <div class="wk qual"><span class="wk-tag">Qualifying lift<em>the weight that scores</em></span>
+          <input class="inp ghost-ph" type="number" data-m="${m.id}" data-f="qualWeight" value="${(e.qualWeight!=null&&e.qualWeight!=='')?e.qualWeight:''}" placeholder="${qualWeight}"></div>
+      </div>
+      <div class="qual-verdict" data-qual="${m.id}">${qualVerdictText(m, qualNow, bw, lvlNow, (e.qualWeight==null||e.qualWeight===''))}</div>
+    </div>`;
+  }
+
+  const confirming = confirmLevelSwitch && confirmLevelSwitch.id===m.id;
+  const confirmBox = confirming ? `
+    <div class="switch-warn">
+      <div class="sw-body">
+        <b>Switch to Level ${confirmLevelSwitch.L}?</b>
+        You've entered weights for Level ${draft.entries[m.id].level}. Switching clears them and loads Level ${confirmLevelSwitch.L}'s suggested numbers instead.
+      </div>
+      <div class="sw-actions">
+        <button type="button" class="btn ghost sm" id="cancelSwitch">Keep what I have</button>
+        <button type="button" class="btn sm" id="confirmSwitch">Switch &amp; clear</button>
+      </div>
+    </div>` : '';
+
+  return `<div class="lift-pick">
+    <div class="lvl-btns" role="group" aria-label="Choose the level you're attempting">${buttons}</div>
+    ${confirmBox}
+    ${picked
+      ? workup
+      : `<div class="att-hint" style="margin-top:10px">Tap the level you're going for — the qualifying weight and your workup ladder appear here.</div>`}
+  </div>`;
+}
+
+/* what level a given weight earns, at this bodyweight */
+function levelFromWeight(m, w, bw){
+  if(!w || !bw || !m.mult) return 0;
+  const ratio = w/bw;
+  let lvl=0; for(let i=0;i<4;i++) if(ratio>=m.mult[i]) lvl=i+1;
+  return lvl;
+}
+function qualVerdictText(m, w, bw, lvl, isPlaceholder){
+  if(!w) return `<span class="qv-muted">Load the qualifying weight — or type a different one to see its level.</span>`;
+  if(!lvl) return `<span class="qv-muted">${w} lb is below the Level 1 standard (${Math.round(m.mult[0]*bw*10)/10} lb).</span>`;
+  const band = TIERS[lvl-1];
+  const nextTxt = lvl<4 ? ` · next level at ${Math.round(m.mult[lvl]*bw*10)/10} lb` : ' · top of the chart';
+  if(isPlaceholder){
+    return `<span class="qv-muted">Target: ${w} lb → Level ${lvl} · ${band.name}. Enter what you lifted to log it.</span>`;
+  }
+  return `<span class="qv-hit t${lvl}">${w} lb lands you at Level ${lvl} · ${band.name}</span><span class="qv-next">${nextTxt}</span>`;
+}
+
+/* the human-readable standard for this movement at this bodyweight */
+function standardLine(m,bw){
+  if(m.MISSING) return 'Standards missing from the rubric';
+  switch(m.type){
+    case 'bwLift': return bw
+      ? `${m.reps} reps · L1–L4: ${m.mult.map(x=>Math.round(x*bw*10)/10).join(' / ')} lb`
+      : `${m.reps} reps · ${m.mult.join('× / ')}× bodyweight`;
+    case 'pushup': return `Toes: ${m.toes.join(' / ')} · Knees: ${m.knees.join(' / ')}`;
+    case 'loadRow': return `${m.reps} reps at 30–45° · added ${m.add.join(' / ')} lb`;
+    case 'plank': return `${m.hold}s hold · added ${m.add.join(' / ')} lb`;
+    case 'forTime': return `Under ${m.sec.map(mmss).join(' / ')}`;
+  }
+}
+
+/* Log-screen progress: live pips + progress bar on the left,
+   a recap of the athlete's last approved test on the right. */
+function tallyStrip(tr, pid){
+  const started = testStarted(tr._entries || {}, P(pid));
+  const scorable = tr.movements.filter(m=>!m.MISSING);
+  const pips = scorable.map(m=>{
+    const lvl = tr.per[m.id].lvl;
+    return `<span class="mpip on${lvl}" title="${m.name}: ${lvl?'Level '+lvl:'not cleared'}"></span>`;
+  }).join('');
+
+  const nextTier = Math.min(tr.tier+1, 4);
+  const atNext = tr.counts[nextTier-1];
+  const need = tr.qualify;
+  const remaining = Math.max(0, need - atNext);
+  const canRise = tr.tier < 4;
+  const barSegs = Array.from({length:need}, (_,i)=>
+    `<span class="pbar-seg ${i<atNext?'filled':''}"></span>`).join('');
+
+  const bandCell = started
+    ? `<div class="tier-now">${bandOf(tr.tier,'big')}</div>`
+    : `<div class="tier-now"><span class="band ready big"><span class="swatch"></span>Ready to test</span></div>`;
+
+  const left = `<div class="strip-main">
+    <div class="eyebrow strip-label">Live Summary · This test · ${qLabel(OPEN_Q)}</div>
+    ${bandCell}
+    <div class="mpips">${pips}</div>
+    <div class="mpip-key">
+      <span><span class="mpip on1"></span> L1</span>
+      <span><span class="mpip on2"></span> L2</span>
+      <span><span class="mpip on3"></span> L3</span>
+      <span><span class="mpip on4"></span> L4</span>
+      <span><span class="mpip on0"></span> not cleared</span>
+    </div>
+    ${!started
+      ? `<div class="pbar-note" style="margin-top:16px">Enter your first result and your tier builds here as you go.</div>`
+      : canRise ? `<div class="pbar-wrap">
+      <div class="pbar-head">
+        <span>Progress to ${bandOf(nextTier)}</span>
+        <span class="num">${atNext} / ${need}</span>
+      </div>
+      <div class="pbar">${barSegs}</div>
+      <div class="pbar-note">${
+        remaining===0
+          ? `You've cleared enough — you'll earn ${TIERS[nextTier-1].name} when this is approved.`
+          : `${remaining} more movement${remaining>1?'s':''} at Level ${nextTier} to reach ${TIERS[nextTier-1].name}.`
+      }</div>
+    </div>` : `<div class="pbar-note" style="margin-top:14px">MVP — the top band. Nothing higher to reach.</div>`}
+  </div>`;
+
+  return `<div class="card" id="tallyStrip" style="margin-bottom:16px"><div class="card-body strip-grid">
+    ${lastTestRecap(pid, tr)}
+    ${left}
+  </div></div>`;
+}
+
+/* Right-hand panel: what happened last time, and what beating it takes. */
+function lastTestRecap(pid, curTr){
+  const me = P(pid);
+  const prior = approvedOf(pid);
+  const need = STD[me.standard].qualify;
+  const total = STD[me.standard].movements.filter(m=>!m.MISSING).length;
+
+  if(!prior.length){
+    /* first time ever — no history to recap */
+    return `<div class="recap first">
+      <div class="eyebrow strip-label">Your first test</div>
+      <p class="recap-lede">Welcome to Tier Testing. There's nothing to beat yet — this one sets your baseline.</p>
+      <p class="recap-rule">Clear <b>${need} of ${total}</b> movements at a level and you earn that wristband.
+        Recruit is where everyone starts; clear ${need} at Level 1 to reach <b>Rookie</b> and its white band.</p>
+    </div>`;
+  }
+
+  const last = prior.at(-1);
+  const lastTr = tierOf(last, me);
+  const lastBand = lastTr.tier;
+  const target = Math.min(lastBand+1, 4);
+  const atTarget = lastTr.counts[target-1];
+  const gap = Math.max(0, need - atTarget);
+  const pips = lastTr.movements.filter(m=>!m.MISSING).map(m=>
+    `<span class="mpip sm on${lastTr.per[m.id].lvl}" title="${m.name}"></span>`).join('');
+
+  const ruleLine = lastBand>=4
+    ? `You're at <b>MVP</b> — the top. This test is about holding it: keep ${need} movements at Level 4.`
+    : `To reach <b>${TIERS[target-1].name}</b> you need <b>${need} of ${total}</b> movements at Level ${target}. Last time you had ${atTarget}${gap?` — <b>${gap} more</b> to go`:` — you were there`}.`;
+
+  return `<div class="recap">
+    <div class="eyebrow strip-label">Recap · Last test · ${qLabel(last.quarter)}</div>
+    <div class="recap-band">${bandOf(lastBand,'big')}</div>
+    <div class="recap-meta">${last.bodyweight} lb · cleared ${lastTr.counts[Math.max(lastBand-1,0)]} of ${total} at Level ${Math.max(lastBand,1)}</div>
+    <div class="mpips" style="margin:10px 0">${pips}</div>
+    <p class="recap-rule">${ruleLine}</p>
+  </div>`;
+}
+
+function tierHero(tr, prof, t){
+  const pips = tr.movements.filter(m=>!m.MISSING).map(m=>
+    `<span class="mpip on${tr.per[m.id].lvl}" title="${m.name}: ${tr.per[m.id].lvl?'Level '+tr.per[m.id].lvl:'not cleared'}"></span>`).join('');
+  return `<div class="tier-hero t${tr.tier}">
+    ${bandOf(tr.tier,'huge')}
+    <div class="lede">
+      <div class="eyebrow">${qLabel(t.quarter)} · ${STD[prof.standard].label} standard · ${t.bodyweight} lb</div>
+      <h2>${tr.tier?TIERS[tr.tier-1].name.toUpperCase():'RECRUIT'}</h2>
+      <p>${tr.tier
+        ? `Cleared ${tr.counts[tr.tier-1]} of ${tr.scorable} movements at Level ${tr.tier}. ${TIERS[tr.tier-1].band} wristband.`
+        : `${TIER0}. Cleared ${tr.counts[0]} of ${tr.total} at Level 1 — ${tr.qualify} needed for the white band.`}</p>
+      <div class="mpips" style="margin-top:14px;margin-bottom:0">${pips}</div>
+    </div>
+  </div>`;
+}
+
+function resultRows(tr, prof, t){
+  return tr.movements.map(m=>{
+    const e=t.entries[m.id]||{}, r=tr.per[m.id];
+    let logged='—';
+    if(m.type==='bwLift' && e.level){
+      const qual = Math.round(m.mult[e.level-1]*t.bodyweight*10)/10;
+      logged=`${qual} lb × ${m.reps} <span style="color:var(--steel);font-size:11px">L${e.level} attempt</span>`;
+    }
+    if(m.type==='pushup'&&e.reps) logged=`${e.reps} reps ${e.variant==='knees'?'on knees':'on toes'}`;
+    if(m.type==='loadRow'&&e.reps) logged=`${e.reps} reps${e.added?` +${e.added} lb`:''}`;
+    if(m.type==='plank'&&e.seconds) logged=`${e.seconds}s${e.added?` +${e.added} lb`:''}`;
+    if(m.type==='forTime'&&e.seconds) logged=mmss(e.seconds);
+    return `<div class="mv">
+      <div class="nm">${m.name}<em>${standardLine(m,t.bodyweight)}</em></div>
+      <div class="verdict num" style="font-size:14px;color:var(--ink);align-self:center">${logged}</div>
+      <div class="verdict">${m.MISSING?'<span class="chip miss">No standard</span>':bandOf(r.lvl)}
+        ${r.next&&!m.MISSING?`<span class="next">Next: <b>${r.next}</b></span>`:''}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── MY TIER ── */
+function viewRecord(){
+  const pid=session.id, me=meP(), hist=approvedOf(pid);
+  if(!hist.length) return `<div class="page-head"><h1>My tier</h1></div>
+    <div class="card"><div class="empty-state"><strong>No approved test yet</strong>
+      Your wristband is earned on test day.
+      <div style="margin-top:16px"><button class="btn sm" data-goto="log">Log a test</button></div></div></div>`;
+
+  const latest=hist.at(-1), tr=tierOf(latest,me), best=bestLevels(pid);
+  const gaps = tr.movements.filter(m=>!m.MISSING && tr.per[m.id].lvl < Math.min(tr.tier+1,4));
+
+  const ladder = QUARTERS.map(q=>{
+    const t=testOf(pid,q);
+    if(!t||t.status!=='approved') return `<div style="flex:1;min-width:118px;padding:15px 16px;border-right:1px solid var(--line)">
+      <div class="eyebrow">${qLabel(q)}</div><div style="margin-top:10px;color:var(--steel);font-size:13px">${t?'Pending':'Not tested'}</div></div>`;
+    const x=tierOf(t,me);
+    return `<div style="flex:1;min-width:118px;padding:15px 16px;border-right:1px solid var(--line)">
+      <div class="eyebrow">${qLabel(q)}</div>
+      <div style="margin-top:10px">${bandOf(x.tier)}</div>
+      <div class="num" style="font-size:11.5px;color:var(--steel);margin-top:8px">${t.bodyweight} lb · ${x.counts[Math.max(x.tier-1,0)]}/${x.scorable} cleared</div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="page-head"><div><div class="eyebrow">${me.name} · ${STD[me.standard].label} standard</div>
+    <h1>My tier</h1>
+    <p>Your wristband is the highest level you cleared on at least ${STD[me.standard].qualify} of ${STD[me.standard].movements.length} movements.</p></div></div>
+  ${tierHero(tr,me,latest)}
+
+  <div class="grid-2" style="margin-bottom:22px">
+    <div class="card">
+      <div class="card-head"><h2>What's between you and ${tr.tier<4?`Level ${tr.tier+1}`:'nothing'}</h2></div>
+      <div class="card-body" style="padding-top:6px">
+        ${tr.tier===4?`<p style="color:var(--ink-2);font-size:14px;padding:12px 0">Black band. There is no next.</p>`
+        : gaps.length===0 ? `<p style="color:var(--good);font-size:14px;padding:12px 0">Every movement is already at Level ${tr.tier+1}. Next test should move you up.</p>`
+        : gaps.map(m=>`<div class="stat-row">
+            <span class="k"><b>${m.name}</b><br><span style="font-size:11.5px;color:var(--steel);font-family:var(--mono)">${tr.per[m.id].next}</span></span>
+            ${bandOf(tr.per[m.id].lvl)}
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Latest · ${qLabel(latest.quarter)}</h2></div>
+      <div class="card-body" style="padding-top:6px">
+        <div class="stat-row"><span class="k">Bodyweight</span><span class="v">${latest.bodyweight} lb</span></div>
+        <div class="stat-row"><span class="k">Movements cleared at L${Math.max(tr.tier,1)}</span><span class="v">${tr.counts[Math.max(tr.tier-1,0)]} / ${tr.scorable}</span></div>
+        <div class="stat-row"><span class="k">Approved by</span><span class="v" style="font-size:13px">${P(latest.approvedBy)?.name||'—'}</span></div>
+        <div class="stat-row"><span class="k">Approved on</span><span class="v" style="font-size:13px">${dateStr(latest.approvedAt)}</span></div>
+        <div class="stat-row"><span class="k">Tests taken</span><span class="v">${hist.length}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="eyebrow" style="margin-bottom:9px">Your tier, quarter by quarter</div>
+  <div class="card" style="display:flex;overflow-x:auto;margin-bottom:22px">${ladder}</div>
+
+  <div class="eyebrow" style="margin-bottom:9px">Best level ever reached, per movement</div>
+  <div class="card"><div class="card-body" style="padding-top:6px;padding-bottom:6px">
+    ${tr.movements.map(m=>`<div class="stat-row">
+      <span class="k"><b>${m.name}</b>${best[m.id].q?` <span style="color:var(--steel);font-size:11.5px;font-family:var(--mono)">· ${qLabel(best[m.id].q)}</span>`:''}</span>
+      ${m.MISSING?'<span class="chip miss">No standard</span>':bandOf(best[m.id].lvl)}
+    </div>`).join('')}
+  </div></div>`;
+}
+
+/* ── APPROVALS ── */
+function viewApprovals(){
+  const q=queue();
+  const head=`<div class="page-head"><div><div class="eyebrow">Coach · ${meP().name}</div>
+    <h1>Approvals</h1>
+    <p>The tier is calculated from the rubric. You're confirming the numbers are real — then the wristband is awarded.</p></div>
+    ${q.length?`<span class="chip pending">${q.length} waiting</span>`:''}</div>
+    ${lastAction?`<div class="banner ok">${lastAction}</div>`:''}`;
+  if(!q.length) return head+`<div class="card"><div class="empty-state"><strong>Nothing waiting</strong>
+    Every submitted test has been signed off.
+    <div style="margin-top:16px"><button class="btn sm" data-goto="board">See the leaderboard</button></div></div></div>`;
+
+  return head + q.map(t=>{
+    const a=P(t.profileId), tr=tierOf(t,a), open=openAppr===t.profileId;
+    const wasT = currentTier(t.profileId);
+    const moving = tr.tier - wasT;
+    return `<div class="appr">
+      <div class="appr-head">
+        <div class="who"><b>${a.name}</b><em>${qLabel(t.quarter)} · ${STD[a.standard].label} · ${t.bodyweight} lb · submitted ${dateStr(t.submittedAt)}</em></div>
+        ${bandOf(wasT)} <span style="color:var(--steel);font-weight:700">→</span> ${bandOf(tr.tier,'big')}
+        ${moving>0?`<span class="chip up">▲ Level up</span>`:moving<0?`<span class="chip down">▼ Dropped</span>`:'<span class="chip flat">Holds</span>'}
+        <button class="btn ghost sm" data-appr="${t.profileId}">${open?'Hide':'Check'} the numbers</button>
+      </div>
+      ${open?`<div style="padding:4px 20px">${resultRows(tr,a,t)}</div>`:''}
+      ${noteFor===t.profileId?`<div class="note-box">
+        <div class="field"><label class="eyebrow">What needs another look?</label>
+          <textarea class="inp" id="note" placeholder="e.g. Deadlift weight looks off — check the plates."></textarea></div>
+        <div style="display:flex;gap:8px;margin-top:9px">
+          <button class="btn sm" data-send-back="${t.profileId}">Send it back</button>
+          <button class="btn ghost sm" id="cancelNote">Cancel</button>
+        </div></div>`:''}
+      <div class="appr-actions">
+        <span class="eyebrow">Awarding as ${meP().name}</span>
+        <div class="spacer"></div>
+        <button class="btn ghost sm" data-return="${t.profileId}">Return with a note</button>
+        <button class="btn go" data-approve="${t.profileId}">Approve &amp; award ${tierName(tr.tier)}</button>
+      </div></div>`;
+  }).join('');
+}
+
+/* ── LEADERBOARD — ranked by tier, then by movements cleared ── */
+function viewBoard(){
+  const rows = S.tests.filter(t=>t.quarter===bq && t.status==='approved').map(t=>{
+    const a=P(t.profileId), tr=tierOf(t,a);
+    return {a,t,tr, cleared: tr.counts[Math.max(tr.tier-1,0)], reach: tr.counts.reduce((s,c)=>s+c,0)};
+  }).sort((x,y)=> y.tr.tier-x.tr.tier || y.reach-x.reach);
+  rows.forEach((r,i)=>r.rank=i+1);
+  const waiting = S.tests.filter(t=>t.quarter===bq && t.status==='submitted').length;
+
+  const body = rows.length ? rows.map(r=>`
+    <tr style="${r.a.id===session.id?'background:var(--ae-soft)':''}">
+      <td class="name"><span class="num" style="color:var(--steel);width:28px;display:inline-block">${r.rank}</span>${r.a.name}</td>
+      <td>${bandOf(r.tr.tier)}</td>
+      <td><span class="chip flat">${STD[r.a.standard].label}</span></td>
+      <td class="num">${r.t.bodyweight}</td>
+      <td class="num">${r.cleared} / ${r.tr.scorable}</td>
+      <td><span class="pips">${r.tr.movements.filter(m=>!m.MISSING).map(m=>
+        `<span class="pip on${r.tr.per[m.id].lvl}" title="${m.name}: Level ${r.tr.per[m.id].lvl}"></span>`).join('')}</span></td>
+      <td style="font-size:12px;color:var(--steel)">${P(r.t.approvedBy)?.name||'—'}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="7"><div class="empty-state"><strong>Nothing approved for ${qLabel(bq)}</strong>
+       Tests appear once a coach signs them off.</div></td></tr>`;
+
+  return `
+  <div class="page-head"><div><div class="eyebrow">${qLabel(bq)} · ${rows.length} approved</div>
+    <h1>Leaderboard</h1>
+    <p>Ranked by tier, then by how many movements you cleared. Only approved tests appear.</p></div>
+    <select class="inp" id="bq" style="width:auto">
+      ${QUARTERS.slice().reverse().map(q=>`<option value="${q}" ${q===bq?'selected':''}>${qLabel(q)}</option>`).join('')}
+    </select></div>
+  ${waiting?`<div class="banner wait"><span class="ic">◷</span><span>
+    <b>${waiting} test${waiting>1?'s':''} still waiting on a coach</b>They join the board once approved.</span></div>`:''}
+  <div class="card scroll"><table>
+    <thead><tr><th>Athlete</th><th>Tier</th><th>Standard</th><th>BW</th><th>Cleared</th><th>Per movement</th><th>Approved by</th></tr></thead>
+    <tbody>${body}</tbody></table></div>
+  <p style="font-size:12px;color:var(--steel);margin-top:12px">Each pip is one movement — shade shows the level reached.</p>`;
+}
+
+/* ── HISTORY ── */
+function viewHistory(){
+  const members = S.profiles.filter(p=>p.role==='member');
+  const unset = members.filter(p=>!p.standard);
+  const pid = isCoach() ? (hWho||members[0].id) : session.id;
+  const a=P(pid);
+
+  /* Coach-only: assigning the testing standard is a coach decision */
+  const roster = isCoach() ? `
+    ${unset.length?`<div class="banner warn"><span class="ic">⚠</span><span>
+      <b>${unset.length} athlete${unset.length>1?'s have':' has'} no testing standard</b>
+      They can't log a test until you assign one: ${unset.map(p=>p.name).join(', ')}.</span></div>`:''}
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><h2>Testing standard</h2>
+        <span class="eyebrow">Only a coach can set this</span></div>
+      <div class="card-body" style="padding-top:6px;padding-bottom:6px">
+        <div class="stat-row">
+          <span class="k"><b>${a.name}</b><br>
+            <span style="font-size:11.5px;color:var(--steel);font-family:var(--mono)">
+              ${a.standard?`${STD[a.standard].label} · ${STD[a.standard].qualify} of ${STD[a.standard].movements.length} to tier`:'Not assigned'}</span></span>
+          <span class="seg2">
+            <button data-set-std="womens" aria-pressed="${a.standard==='womens'}">Women's</button>
+            <button data-set-std="mens" aria-pressed="${a.standard==='mens'}">Men's</button>
+          </span>
+        </div>
+      </div>
+    </div>` : '';
+
+  if(!a.standard) return `<div class="page-head"><div><div class="eyebrow">${a.name}</div>
+    <h1>${isCoach()?'Athletes':'History'}</h1></div>
+    ${isCoach()?`<select class="inp" id="hWho" style="width:auto">${members
+      .map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${p.name}${p.standard?'':' — no standard'}</option>`).join('')}</select>`:''}
+    </div>${roster}
+    <div class="card"><div class="empty-state"><strong>No standard assigned</strong>
+      Set one above and their history can be scored.</div></div>`;
+
+  let hist=historyOf(pid).slice().reverse();
+  if(hQ!=='all') hist=hist.filter(t=>t.quarter===hQ);
+
+  const head=`<div class="page-head"><div><div class="eyebrow">${a.name} · ${STD[a.standard].label} standard</div>
+    <h1>${isCoach()?'Athletes':'History'}</h1>
+    <p>Every test, the tier it earned, the bodyweight it was measured against, and who signed it off.</p></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${isCoach()?`<select class="inp" id="hWho" style="width:auto">${members
+        .map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${p.name}${p.standard?'':' — no standard'}</option>`).join('')}</select>`:''}
+      <select class="inp" id="hQ" style="width:auto"><option value="all">All quarters</option>
+        ${QUARTERS.slice().reverse().map(q=>`<option value="${q}" ${q===hQ?'selected':''}>${qLabel(q)}</option>`).join('')}</select>
+    </div></div>${roster}`;
+
+  if(!hist.length) return head+`<div class="card"><div class="empty-state"><strong>No tests match</strong></div></div>`;
+
+  return head+`<div class="card scroll"><table>
+    <thead><tr><th>Quarter</th><th>Tier</th><th>BW</th><th>Cleared</th><th>Per movement</th><th>Status</th><th>Approved by</th></tr></thead>
+    <tbody>${hist.map(t=>{
+      const tr=tierOf(t,a), c=P(t.approvedBy);
+      return `<tr>
+        <td class="name">${qLabel(t.quarter)}</td>
+        <td>${t.status==='approved'?bandOf(tr.tier):'<span class="chip flat">—</span>'}</td>
+        <td class="num">${t.bodyweight}</td>
+        <td class="num">${tr.counts[Math.max(tr.tier-1,0)]} / ${tr.scorable}</td>
+        <td><span class="pips">${tr.movements.filter(m=>!m.MISSING).map(m=>
+          `<span class="pip on${tr.per[m.id].lvl}" title="${m.name}"></span>`).join('')}</span></td>
+        <td><span class="chip ${t.status}">${t.status}</span></td>
+        <td style="font-size:12px;color:var(--steel)">${c?`${c.name}<br>${dateStr(t.approvedAt)}`:'—'}</td>
+      </tr>`;}).join('')}</tbody></table></div>`;
+}
+
+/* ── STANDARDS (the rubric, in the app) ── */
+function viewStandards(){
+  const std=STD[stdView];
+  return `
+  <div class="page-head"><div><div class="eyebrow">The rubric</div>
+    <h1>Tier standards</h1>
+    <p>Clear ${std.qualify} of ${std.movements.length} movements at a level to earn that wristband. Ties round up — 10 push-ups clears the 10–15 band.</p></div>
+    <div class="seg2">
+      <button data-std="mens" aria-pressed="${stdView==='mens'}">Men's</button>
+      <button data-std="womens" aria-pressed="${stdView==='womens'}">Women's</button>
+    </div></div>
+  <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px">
+    ${TIERS.map(t=>`${bandOf(t.n)}`).join('')}
+  </div>
+  <div class="card scroll"><table>
+    <thead><tr><th>Movement</th>${TIERS.map(t=>`<th>L${t.n} · ${t.name}</th>`).join('')}</tr></thead>
+    <tbody>${std.movements.map(m=>`<tr>
+      <td class="name">${m.name}</td>
+      ${[0,1,2,3].map(i=>{
+        if(m.MISSING) return `<td><span class="chip miss">not set</span></td>`;
+        let v='';
+        if(m.type==='bwLift') v=`${m.mult[i]}× BW × ${m.reps}`;
+        if(m.type==='pushup') v=`${m.toes[i]}+ toes<br><span style="color:var(--steel);font-size:11px">${m.knees[i]}+ knees</span>`;
+        if(m.type==='loadRow') v=`${m.reps} reps${m.add[i]?` +${m.add[i]} lb`:''}`;
+        if(m.type==='plank') v=`${m.hold}s${m.add[i]?` +${m.add[i]} lb`:''}`;
+        if(m.type==='forTime') v=`Under ${mmss(m.sec[i])}`;
+        return `<td class="num" style="font-size:12.5px">${v}</td>`;
+      }).join('')}
+    </tr>`).join('')}</tbody></table></div>
+  ${std.movements.some(m=>m.MISSING)?`<div class="banner warn" style="margin-top:16px"><span class="ic">⚠</span><span>
+    <b>Bench Press is blank on the men's sheet</b>Level 1 has push-up text pasted into it, and Levels 2–4 are empty.
+    Until real standards go in, it can't count toward anyone's tier — men are effectively scored out of 7 movements, not 8.</span></div>`:''}
+
+  <div class="card" style="margin-top:22px">
+    <div class="card-head"><h2>Open questions for the head coach</h2>
+      <span class="eyebrow">Unresolved — affects who gets which band</span></div>
+    <div class="card-body" style="padding-top:6px;padding-bottom:6px">
+      <div class="stat-row"><span class="k">
+        <b>Men's Bench Press standards</b><br>
+        <span style="font-size:12px;color:var(--steel)">Levels 2–4 are empty on the rubric, and Level 1 has push-up text in it.
+        Until this is set, men tier on 5 of 7 rather than 5 of 8 — which makes their test easier, not harder.</span>
+      </span><span class="chip pending">Blocked</span></div>
+      <div class="stat-row"><span class="k">
+        <b>Men's and women's sheets are identical on five movements</b><br>
+        <span style="font-size:12px;color:var(--steel)">Leg Press, Deadlift, Push Up, Inverted Row and Lat Pull Down carry the same numbers on both.
+        Only Plank (90s vs 60s) and Crazy 8 differ. Deliberate, or a copy-paste that never got adjusted?</span>
+      </span><span class="chip pending">Verify</span></div>
+      <div class="stat-row"><span class="k">
+        <b>Level 0 is called "Recruit"</b><br>
+        <span style="font-size:12px;color:var(--steel)">No wristband yet. Cleared the test but not enough movements to earn White.</span>
+      </span><span class="chip approved">Settled</span></div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════ EVENTS ═══════════ */
+const $=id=>document.getElementById(id);
+const on=(id,fn)=>{const e=$(id); if(e) e.onclick=fn;};
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+
+function wire(){
+  if(!session){
+    on('sendLink',()=>{const v=$('email').value.trim();
+      if(!v.includes('@')){toast('Enter an email address');return}
+      authEmail=v;authStage='sent';render()});
+    on('openLink',()=>{const p=S.profiles.find(x=>x.email.toLowerCase()===authEmail.toLowerCase())||S.profiles[1];signIn(p.id)});
+    on('backToEmail',()=>{authStage='enter';render()});
+    document.querySelectorAll('[data-as]').forEach(b=>b.onclick=()=>signIn(b.dataset.as));
+    return;
+  }
+  document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{view=b.dataset.view;openAppr=null;noteFor=null;lastAction=null;confirmLevelSwitch=null;render()});
+  document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{view=b.dataset.goto;lastAction=null;render()});
+  on('signout',()=>{session=null;view='log';draft={};authStage='enter';authEmail='';render()});
+
+  if(view==='log'){
+    const bw=$('bw'); if(bw) bw.oninput=e=>{draft.bodyweight=e.target.value;autosave();rerenderRows()};
+    document.querySelectorAll('[data-m]').forEach(i=>i.oninput=e=>{
+      const {m,f,wk}=e.target.dataset;
+      draft.entries[m]=draft.entries[m]||{};
+      if(wk!==undefined){                          // a workup weight box
+        draft.entries[m].workup = draft.entries[m].workup || [];
+        draft.entries[m].workup[Number(wk)] = Number(e.target.value)||0;
+      } else if(f==='mins' || f==='secs'){         // Crazy 8: two boxes → one seconds value
+        const box = e.target.closest('.mv');
+        const mins = Number(box.querySelector('[data-f="mins"]').value)||0;
+        const secs = Number(box.querySelector('[data-f="secs"]').value)||0;
+        draft.entries[m].seconds = mins*60 + secs;
+      } else {
+        draft.entries[m][f]=Number(e.target.value)||0;
+      }
+      autosave(); rerenderRows();
+    });
+    // level-attempt buttons on weighted lifts
+    document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
+      const id=b.dataset.pick, L=Number(b.dataset.lvl);
+      const e = draft.entries[id] || {};
+      const switching = e.level && e.level!==L;   // changing to a different level
+      const hasData = (e.workup||[]).some(w=>w) || (e.qualWeight!=null && e.qualWeight!=='');
+      if(switching && hasData){
+        // Scenario 2: they have numbers in — warn before wiping them
+        confirmLevelSwitch = {id, L};
+        render();
+        return;
+      }
+      applyLevel(id, L);
+    });
+    document.querySelectorAll('[data-var]').forEach(b=>b.onclick=()=>{
+      const id=b.dataset.var;
+      draft.entries[id]=draft.entries[id]||{};
+      draft.entries[id].variant=b.dataset.v;
+      autosave(); render();
+    });
+    // confirm/cancel on the level-switch warning
+    on('confirmSwitch',()=>{ const {id,L}=confirmLevelSwitch; confirmLevelSwitch=null; applyLevel(id,L); });
+    on('cancelSwitch',()=>{ confirmLevelSwitch=null; render(); });
+    on('submitTest',submitTest);
+    on('unsubmit',async()=>{
+      const t=testOf(session.id,OPEN_Q);
+      draft={quarter:OPEN_Q,bodyweight:t.bodyweight,entries:JSON.parse(JSON.stringify(t.entries)),savedAt:Date.now()};
+      S.drafts[session.id]=JSON.parse(JSON.stringify(draft));
+      S.tests=S.tests.filter(x=>x!==t);
+      await save(); toast('Pulled back — edit away'); render();
+    });
+    if(Number(draft.bodyweight)) rerenderRows();   // populate targets on load, before any typing
+  }
+  if(view==='approvals'){
+    document.querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>{openAppr=openAppr===b.dataset.appr?null:b.dataset.appr;render()});
+    document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>approve(b.dataset.approve));
+    document.querySelectorAll('[data-return]').forEach(b=>b.onclick=()=>{noteFor=b.dataset.return;render()});
+    document.querySelectorAll('[data-send-back]').forEach(b=>b.onclick=()=>sendBack(b.dataset.sendBack));
+    on('cancelNote',()=>{noteFor=null;render()});
+  }
+  if(view==='board') $('bq').onchange=e=>{bq=e.target.value;render()};
+  if(view==='history'){
+    const w=$('hWho'); if(w) w.onchange=e=>{hWho=e.target.value;render()};
+    const q=$('hQ'); if(q) q.onchange=e=>{hQ=e.target.value;render()};
+    document.querySelectorAll('[data-set-std]').forEach(b=>b.onclick=async()=>{
+      const a=P(hWho||S.profiles.find(p=>p.role==='member').id);
+      a.standard=b.dataset.setStd;
+      await save();
+      toast(`${a.name} now tests against the ${STD[a.standard].label} standard`);
+      render();
+    });
+  }
+  if(view==='standards') document.querySelectorAll('[data-std]').forEach(b=>b.onclick=()=>{stdView=b.dataset.std;render()});
+}
+
+/* live tier maths without losing input focus */
+function rerenderRows(){
+  const me=meP(), bw=Number(draft.bodyweight)||0;
+  const std=STD[me.standard];
+  std.movements.forEach(m=>{
+    const row=document.querySelector(`[data-row="${m.id}"] .verdict`);
+    if(!row) return;
+    if(m.MISSING) return;
+    if(!bw){row.innerHTML='<span style="color:var(--steel)">Enter bodyweight first</span>';return}
+    if(!hasEntry(m, draft.entries[m.id])){
+      row.innerHTML='<span class="chip flat">Not entered</span><span class="next">Log your result to score this movement.</span>';
+    } else {
+      const r=levelOf(m,draft.entries[m.id],bw);
+      row.innerHTML = `${bandOf(r.lvl)}${r.next?`<span class="next">Next level: <b>${r.next}</b></span>`:'<span class="next">Max level reached — nothing higher to hit.</span>'}`;
+    }
+    const nm=document.querySelector(`[data-row="${m.id}"] .nm em`);
+    if(nm) nm.textContent = standardLine(m,bw);
+    // flip the badge to a check the moment a movement has data
+    const badge=document.querySelector(`[data-row="${m.id}"] .mv-no`);
+    if(badge && !m.MISSING){
+      const done = isComplete(m, draft.entries[m.id]);
+      badge.classList.toggle('done', done);
+      badge.textContent = done ? '✓' : (std.movements.indexOf(m)+1);
+    }
+
+    /* weighted lifts: bodyweight drives the button weights and workup placeholders */
+    if(m.type==='bwLift'){
+      const e = draft.entries[m.id]||{};
+      document.querySelectorAll(`[data-row="${m.id}"] .lvl-btn`).forEach((btn,i)=>{
+        const w = Math.round(m.mult[i]*bw*10)/10;
+        const wtEl = btn.querySelector('.lvl-btn-wt');
+        if(wtEl) wtEl.innerHTML = `${w}<small>lb</small>`;
+      });
+      // active button follows the actual scoring level (typed weight wins over tapped button)
+      const typedQ = (e.qualWeight!=null && e.qualWeight!=='') ? e.qualWeight : null;
+      const active = typedQ!=null ? levelFromWeight(m, typedQ, bw) : (e.level||0);
+      document.querySelectorAll(`[data-row="${m.id}"] .lvl-btn`).forEach((btn,i)=>{
+        btn.classList.toggle('on', active===(i+1));
+      });
+      if(e.level){
+        const qual = Math.round(m.mult[e.level-1]*bw*10)/10;
+        const isPh = (e.qualWeight==null || e.qualWeight==='');
+        const wkBoxes = document.querySelectorAll(`[data-row="${m.id}"] [data-wk]`);
+        const qualNow = isPh ? qual : e.qualWeight;
+        if(wkBoxes[0] && document.activeElement!==wkBoxes[0]) wkBoxes[0].placeholder = Math.round(qualNow*0.5*10)/10;
+        if(wkBoxes[1] && document.activeElement!==wkBoxes[1]) wkBoxes[1].placeholder = Math.round(qualNow*0.75*10)/10;
+        const qBox = document.querySelector(`[data-row="${m.id}"] .wk.qual input`);
+        if(qBox && document.activeElement!==qBox) qBox.placeholder = qual;   // suggestion only, never force a value
+        const qv = document.querySelector(`[data-qual="${m.id}"]`);
+        if(qv) qv.innerHTML = qualVerdictText(m, qualNow, bw, levelFromWeight(m, qualNow, bw), isPh);
+      }
+    }
+  });
+  const tr = bw ? tierOf({entries:draft.entries,bodyweight:bw}, me) : null;
+  if(tr) tr._entries = draft.entries;
+  if(tr){
+    const strip = document.getElementById('tallyStrip');
+    if(strip) strip.outerHTML = tallyStrip(tr, session.id);
+  }
+}
+
+function signIn(pid){session={id:pid};view=P(pid).role==='coach'?'approvals':'log';draft={};render();toast(`Signed in as ${P(pid).name}`)}
+
+/* Set (or clear) the attempted level for a lift, wiping any stale workup numbers
+   so the fresh level's placeholders show through. */
+function applyLevel(id, L){
+  const e = draft.entries[id] || (draft.entries[id]={});
+  if(e.level===L){                 // tapping the active level again clears it
+    delete e.level; delete e.workup; delete e.qualWeight;
+  } else {
+    e.level = L;
+    delete e.workup;               // drop old warm-up/qualifying numbers → placeholders return
+    delete e.qualWeight;
+  }
+  autosave(); render();
+}
+
+let timer=null;
+function autosave(){
+  const el=$('autosave'); if(el) el.innerHTML='<span class="dot"></span>Saving…';
+  clearTimeout(timer);
+  timer=setTimeout(async()=>{
+    draft.savedAt=Date.now();
+    S.drafts[session.id]=JSON.parse(JSON.stringify(draft));
+    await save();
+    const e=$('autosave'); if(e) e.innerHTML=`<span class="dot saved"></span>Saved ${timeStr(draft.savedAt)}`;
+  },600);
+}
+
+async function submitTest(){
+  const bw=Number(draft.bodyweight);
+  if(!bw){toast('Bodyweight first — every standard is measured against it');$('bw').focus();return}
+  const std=STD[meP().standard];
+  if(!std.movements.some(m=>{const e=draft.entries[m.id];
+    return e && (e.seconds||e.reps||e.added||e.level);})){
+    toast('Log at least one movement');return}
+
+  /* One test per athlete per quarter. A resubmission overwrites; it never duplicates. */
+  const existing = testOf(session.id, OPEN_Q);
+  const rec = {profileId:session.id, quarter:OPEN_Q, bodyweight:bw,
+    entries:JSON.parse(JSON.stringify(draft.entries)), status:'submitted',
+    submittedAt:Date.now(), coachNote:null, approvedBy:null, approvedAt:null};
+  const resubmit = !!existing;
+  if(existing) Object.assign(existing, rec);
+  else S.tests.push(rec);
+
+  delete S.drafts[session.id];
+  clearTimeout(timer); await save();
+  draft={};
+  toast(resubmit ? 'Resubmitted — back with your coach' : 'Sent to your coach');
+  render();
+}
+
+async function approve(pid){
+  const t=S.tests.find(x=>x.profileId===pid&&x.status==='submitted');
+  const a=P(pid), was=currentTier(pid);
+  t.status='approved'; t.approvedBy=session.id; t.approvedAt=Date.now();
+  const tr=tierOf(t,a);
+  t.awardedTier=tr.tier;
+  openAppr=null;noteFor=null;
+  await save();
+  lastAction=`<span class="ic">✓</span><span><b>${a.name} awarded ${tierName(tr.tier)}${tr.tier?` — ${TIERS[tr.tier-1].band} band`:''}</b>
+    Cleared ${tr.counts[Math.max(tr.tier-1,0)]} of ${tr.scorable} movements at Level ${Math.max(tr.tier,1)}.
+    ${tr.tier>was?`Levelled up from ${tierName(was)}.`:tr.tier<was?`Dropped from ${tierName(was)}.`:'Holds their tier.'}</span>`;
+  toast(`${a.name} is now ${tierName(tr.tier)}`);
+  render();
+}
+
+async function sendBack(pid){
+  const note=$('note')?.value.trim();
+  const t=S.tests.find(x=>x.profileId===pid&&x.status==='submitted');
+  t.status='returned'; t.coachNote=note||'Have another look at your numbers.';
+  t.approvedBy=session.id; t.returnedAt=Date.now();
+  noteFor=null;openAppr=null; await save();
+  lastAction=`<span class="ic">↩</span><span><b>Sent back to ${P(pid).name}</b>
+    No tier awarded. They'll see your note and can resubmit.</span>`;
+  toast(`Sent back to ${P(pid).name}`); render();
+}
+
+load().then(render);
+</script>
+</body>
+</html>
