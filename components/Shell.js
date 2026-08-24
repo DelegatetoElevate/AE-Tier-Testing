@@ -42,13 +42,13 @@ export default function Shell({ profile, children }) {
           <i>AE</i> Tier Testing <span>ALLEN ELLIOTT FITNESS</span>
         </div>
         <div className="spacer" />
-        <div className={`me ${isCoach ? 'coach' : ''}`}>
+        <a href="/onboarding" className={`me ${isCoach ? 'coach' : ''}`} style={{ textDecoration: 'none' }} title="Edit your name">
           <div className="av">{initials(profile?.name)}</div>
           <div>
             <span className="role">{isCoach ? 'Coach' : 'Athlete'}</span>
             {profile?.name}
           </div>
-        </div>
+        </a>
         <button className="signout" onClick={signOut}>
           Sign out
         </button>
