@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase-server';
+import { requireUser } from '@/lib/auth';
 import Shell from '@/components/Shell';
 import { Band, Pips } from '@/components/Band';
 import { STD, tierOf, tierName, OPEN_Q } from '@/lib/scoring';
@@ -24,11 +23,7 @@ function toTestShape(session, entryRows) {
 }
 
 export default async function LeaderboardPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { user, supabase } = await requireUser();
 
   // The signed-in person's profile (drives the shell + role).
   const { data: profile } = await supabase
