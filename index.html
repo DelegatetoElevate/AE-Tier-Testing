@@ -413,6 +413,8 @@ const OPEN_Q = '2026-Q3';
 const KEY = 'ae:tier:v4';
 
 const qLabel = q => "Q"+q.slice(-1)+" '"+q.slice(2,4);
+// Quarter label with attempt number for re-tests: "Q3 '26 · Attempt 2"
+const qAttLabel = t => qLabel(t.quarter) + ((t&&t.attempt>1) ? ` · Attempt ${t.attempt}` : '');
 const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('');
 const mmss = s => `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
 const dateStr = t => new Date(t).toLocaleDateString([], {month:'short', day:'numeric'});
@@ -567,7 +569,9 @@ function rowToTest(r){
     submittedAt: r.submitted_at ? new Date(r.submitted_at).getTime() : null,
     approvedBy: r.approved_by, approvedAt: r.approved_at ? new Date(r.approved_at).getTime() : null,
     returnedAt: r.returned_at ? new Date(r.returned_at).getTime() : null,
-    coachNote: r.coach_note, awardedTier: r.awarded_tier
+    coachNote: r.coach_note, awardedTier: r.awarded_tier,
+    attempt: r.attempt!=null ? Number(r.attempt) : 1,
+    retest: r.retest || null
   };
 }
 
@@ -616,7 +620,8 @@ async function sbSaveTest(t){
     approved_by: t.approvedBy || null,
     approved_at: t.approvedAt ? new Date(t.approvedAt).toISOString() : null,
     returned_at: t.returnedAt ? new Date(t.returnedAt).toISOString() : null,
-    coach_note: t.coachNote || null, awarded_tier: t.awardedTier!=null ? t.awardedTier : null
+    coach_note: t.coachNote || null, awarded_tier: t.awardedTier!=null ? t.awardedTier : null,
+    attempt: t.attempt!=null ? t.attempt : 1, retest: t.retest || null
   };
   if(t._id){ await c.from('test_sessions').update(row).eq('id', t._id); }
   else { const {data} = await c.from('test_sessions').insert(row).select('id').single(); if(data) t._id = data.id; }
@@ -683,6 +688,8 @@ const testOf = (pid,q) => S.tests.find(t=>t.profileId===pid && t.quarter===q);
 const historyOf = pid => QUARTERS.map(q=>testOf(pid,q)).filter(Boolean);
 const approvedOf = pid => historyOf(pid).filter(t=>t.status==='approved');
 const queue = () => S.tests.filter(t=>t.status==='submitted').sort((a,b)=>a.submittedAt-b.submittedAt);
+// Approved tests whose athlete has asked for a re-test, awaiting a coach's decision.
+const retestQueue = () => S.tests.filter(t=>t.status==='approved' && t.retest==='requested');
 const currentTier = pid => { const a=approvedOf(pid); return a.length ? tierOf(a.at(-1), P(pid)).tier : 0; };
 
 /* best-ever level per movement */
@@ -969,10 +976,15 @@ function viewLog(){
   const std=STD[me.standard];
   const t=testOf(pid,OPEN_Q);
 
-  if(t && (t.status==='approved'||t.status==='submitted')){
+  // Approved + coach granted a re-test → drop into the log form (handled below), not the awarded view.
+  const grantedRetest = t && t.status==='approved' && t.retest==='granted';
+
+  if(t && !grantedRetest && (t.status==='approved'||t.status==='submitted')){
     const tr=tierOf(t,me);
     const done = t.status==='approved';
-    return `<div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)}</div>
+    const reqPending = done && t.retest==='requested';
+    const declined   = done && t.retest==='declined';
+    return `<div class="page-head"><div><div class="eyebrow">${qAttLabel(t)}</div>
       <h1>${done?'Tier awarded':'Submitted'}</h1></div></div>
       <div class="banner ${done?'ok':'wait'}"><span class="ic">${done?'✓':'◷'}</span><span>
         <b>${done?`${P(t.approvedBy).name} signed this off on ${dateStr(t.approvedAt)}`:`Waiting on a coach — sent ${dateStr(t.submittedAt)}`}</b>
@@ -980,12 +992,24 @@ function viewLog(){
               :`Your tier is provisional until a coach approves it.`}</span></div>
       ${tierHero(tr, me, t)}
       <div class="card"><div class="card-body" style="padding-top:6px;padding-bottom:6px">${resultRows(tr,me,t)}</div></div>
-      ${!done?`<button class="btn ghost sm" id="unsubmit" style="margin-top:14px">Pull it back and edit</button>`:''}`;
+      ${!done?`<button class="btn ghost sm" id="unsubmit" style="margin-top:14px">Pull it back and edit</button>`:''}
+      ${reqPending?`<div class="banner wait" style="margin-top:14px"><span class="ic">◷</span><span>
+        <b>Re-test requested</b>Waiting for a coach to approve it. You keep your current tier until you log a new attempt.
+        </span></div>
+        <button class="btn ghost sm" id="retestCancel" style="margin-top:10px">Cancel request</button>`:''}
+      ${declined?`<div class="banner back" style="margin-top:14px"><span class="ic">↩</span><span>
+        <b>Re-test declined</b>A coach didn't approve a re-test this time. Your ${tierName(t.awardedTier!=null?t.awardedTier:tr.tier)} tier stands. You can ask again.
+        </span></div>`:''}
+      ${done && !reqPending?`<button class="btn sm" id="retestReq" style="margin-top:14px">Request a re-test</button>`:''}`;
   }
 
   if(!draft.quarter){
     const saved=S.drafts[pid], last=approvedOf(pid).at(-1);
-    if(t && t.status==='returned'){
+    if(grantedRetest){
+      /* Coach approved a re-test — start from their last approved numbers so they only tweak. */
+      draft = {quarter:OPEN_Q, bodyweight:t.bodyweight,
+               entries: JSON.parse(JSON.stringify(t.entries)), savedAt:null};
+    } else if(t && t.status==='returned'){
       /* Sent back by a coach — put their numbers back in the form, not a blank one */
       draft = {quarter:OPEN_Q, bodyweight:t.bodyweight,
                entries: JSON.parse(JSON.stringify(t.entries)), savedAt:null};
@@ -1051,10 +1075,15 @@ function viewLog(){
   const tr = tierOf({entries:draft.entries, bodyweight:bw||0}, me);
   tr._entries = draft.entries;
 
+  const nextAtt = grantedRetest ? (t.attempt||1)+1 : null;
   return `
-  <div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)} · ${std.label} standard</div>
-    <h1>Log your test</h1>
+  <div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)}${nextAtt?` · Attempt ${nextAtt}`:''} · ${std.label} standard</div>
+    <h1>${grantedRetest?'Log your re-test':'Log your test'}</h1>
     <p>Saves as you type. Clear <b>${std.qualify} of ${std.movements.length}</b> movements at a level and that's your tier.</p></div></div>
+  ${grantedRetest?`<div class="banner ok"><span class="ic">✓</span><span>
+    <b>Re-test approved — this is Attempt ${nextAtt}</b>
+    Your last approved numbers are loaded below. Update what changed and submit again.
+    You keep your current ${tierName(t.awardedTier!=null?t.awardedTier:0)} tier until a coach approves this attempt.</span></div>`:''}
   ${returned?`<div class="banner back"><span class="ic">↩</span><span>
     <b>${P(t.approvedBy).name} sent this back on ${dateStr(t.returnedAt||Date.now())}</b>
     <span style="display:block;font-size:14.5px;font-weight:600;margin:7px 0 8px;padding:10px 13px;background:rgba(255,255,255,.65);border-radius:8px;border-left:3px solid #C0392B">
@@ -1400,22 +1429,43 @@ function viewRecord(){
 /* ── APPROVALS ── */
 function viewApprovals(){
   const q=queue();
+  const rq=retestQueue();
   const head=`<div class="page-head"><div><div class="eyebrow">Coach · ${meP().name}</div>
     <h1>Approvals</h1>
     <p>The tier is calculated from the rubric. You're confirming the numbers are real — then the wristband is awarded.</p></div>
     ${q.length?`<span class="chip pending">${q.length} waiting</span>`:''}</div>
     ${lastAction?`<div class="banner ok">${lastAction}</div>`:''}`;
-  if(!q.length) return head+`<div class="card"><div class="empty-state"><strong>Nothing waiting</strong>
-    Every submitted test has been signed off.
-    <div style="margin-top:16px"><button class="btn sm" data-goto="board">See the leaderboard</button></div></div></div>`;
 
-  return head + q.map(t=>{
+  // Re-test requests — athletes asking to test again this quarter.
+  const retestSection = rq.length ? `
+    <div class="eyebrow" style="margin:4px 0 10px">Re-test requests · ${rq.length}</div>
+    ${rq.map(t=>{
+      const a=P(t.profileId);
+      return `<div class="appr">
+        <div class="appr-head">
+          <div class="who"><b>${a.name}</b><em>${qAttLabel(t)} · currently ${tierName(t.awardedTier!=null?t.awardedTier:tierOf(t,a).tier)} · asked to test again</em></div>
+          <span class="chip pending">Re-test</span>
+        </div>
+        <div class="appr-actions">
+          <span class="eyebrow">They keep their tier until a new attempt is approved</span>
+          <div class="spacer"></div>
+          <button class="btn ghost sm" data-retest-decline="${t.profileId}">Decline</button>
+          <button class="btn go" data-retest-approve="${t.profileId}">Approve re-test</button>
+        </div></div>`;
+    }).join('')}
+    ${q.length?`<div class="eyebrow" style="margin:22px 0 10px">Submitted tests · ${q.length}</div>`:''}` : '';
+
+  if(!q.length) return head + retestSection + (rq.length?'':`<div class="card"><div class="empty-state"><strong>Nothing waiting</strong>
+    Every submitted test has been signed off.
+    <div style="margin-top:16px"><button class="btn sm" data-goto="board">See the leaderboard</button></div></div></div>`);
+
+  return head + retestSection + q.map(t=>{
     const a=P(t.profileId), tr=tierOf(t,a), open=openAppr===t.profileId;
     const wasT = currentTier(t.profileId);
     const moving = tr.tier - wasT;
     return `<div class="appr">
       <div class="appr-head">
-        <div class="who"><b>${a.name}</b><em>${qLabel(t.quarter)} · ${STD[a.standard].label} · ${t.bodyweight} lb · submitted ${dateStr(t.submittedAt)}</em></div>
+        <div class="who"><b>${a.name}</b><em>${qAttLabel(t)} · ${STD[a.standard].label} · ${t.bodyweight} lb · submitted ${dateStr(t.submittedAt)}</em></div>
         ${bandOf(wasT)} <span style="color:var(--steel);font-weight:700">→</span> ${bandOf(tr.tier,'big')}
         ${moving>0?`<span class="chip up">▲ Level up</span>`:moving<0?`<span class="chip down">▼ Dropped</span>`:'<span class="chip flat">Holds</span>'}
         <button class="btn ghost sm" data-appr="${t.profileId}">${open?'Hide':'Check'} the numbers</button>
@@ -1715,6 +1765,22 @@ function wire(){
     on('confirmSwitch',()=>{ const {id,L}=confirmLevelSwitch; confirmLevelSwitch=null; applyLevel(id,L); });
     on('cancelSwitch',()=>{ confirmLevelSwitch=null; render(); });
     on('submitTest',submitTest);
+    on('retestReq',async()=>{
+      const t=testOf(session.id,OPEN_Q); if(!t)return;
+      t.retest='requested';
+      const btn=$('retestReq'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
+      try{ await sbSaveTest(t); toast('Re-test requested — your coach will review it'); }
+      catch(e){ console.error(e); t.retest=null; toast('Request failed — try again'); }
+      render();
+    });
+    on('retestCancel',async()=>{
+      const t=testOf(session.id,OPEN_Q); if(!t)return;
+      t.retest=null;
+      const btn=$('retestCancel'); if(btn){btn.disabled=true;btn.textContent='Cancelling…';}
+      try{ await sbSaveTest(t); toast('Request cancelled'); }
+      catch(e){ console.error(e); t.retest='requested'; toast('Cancel failed — try again'); }
+      render();
+    });
     on('unsubmit',async()=>{
       const t=testOf(session.id,OPEN_Q);
       draft={quarter:OPEN_Q,bodyweight:t.bodyweight,entries:JSON.parse(JSON.stringify(t.entries)),savedAt:Date.now()};
@@ -1729,6 +1795,8 @@ function wire(){
     document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>approve(b.dataset.approve));
     document.querySelectorAll('[data-return]').forEach(b=>b.onclick=()=>{noteFor=b.dataset.return;render()});
     document.querySelectorAll('[data-send-back]').forEach(b=>b.onclick=()=>sendBack(b.dataset.sendBack));
+    document.querySelectorAll('[data-retest-approve]').forEach(b=>b.onclick=()=>approveRetest(b.dataset.retestApprove));
+    document.querySelectorAll('[data-retest-decline]').forEach(b=>b.onclick=()=>declineRetest(b.dataset.retestDecline));
     on('cancelNote',()=>{noteFor=null;render()});
   }
   if(view==='board') $('bq').onchange=e=>{bq=e.target.value;render()};
@@ -1899,9 +1967,14 @@ async function submitTest(){
 
   /* One test per athlete per quarter. A resubmission overwrites; it never duplicates. */
   const existing = testOf(session.id, OPEN_Q);
+  // A re-test the coach approved becomes the next numbered attempt on the same record.
+  const isRetest = existing && existing.retest==='granted';
   const rec = {profileId:session.id, quarter:OPEN_Q, bodyweight:bw,
     entries:JSON.parse(JSON.stringify(draft.entries)), status:'submitted',
-    submittedAt:Date.now(), coachNote:null, approvedBy:null, approvedAt:null};
+    submittedAt:Date.now(), coachNote:null, approvedBy:null, approvedAt:null,
+    retest:null,
+    attempt: isRetest ? (existing.attempt||1)+1 : (existing?existing.attempt||1:1),
+    awardedTier: isRetest ? null : (existing?existing.awardedTier:null)};
   const resubmit = !!existing;
   let target;
   if(existing){ Object.assign(existing, rec); target=existing; }
@@ -1944,6 +2017,30 @@ async function sendBack(pid){
   lastAction=`<span class="ic">↩</span><span><b>Sent back to ${P(pid).name}</b>
     No tier awarded. They'll see your note and can resubmit.</span>`;
   toast(`Sent back to ${P(pid).name}`); render();
+}
+
+async function approveRetest(pid){
+  const t=S.tests.find(x=>x.profileId===pid&&x.status==='approved'&&x.retest==='requested');
+  if(!t)return;
+  const a=P(pid);
+  t.retest='granted';
+  try{ await sbSaveTest(t); }
+  catch(e){ console.error(e); t.retest='requested'; toast('Failed — try again'); render(); return; }
+  lastAction=`<span class="ic">✓</span><span><b>Re-test approved for ${a.name}</b>
+    They keep ${tierName(t.awardedTier!=null?t.awardedTier:0)} until they log Attempt ${(t.attempt||1)+1} and you approve it.</span>`;
+  toast(`${a.name} can re-test`); render();
+}
+
+async function declineRetest(pid){
+  const t=S.tests.find(x=>x.profileId===pid&&x.status==='approved'&&x.retest==='requested');
+  if(!t)return;
+  const a=P(pid);
+  t.retest='declined';
+  try{ await sbSaveTest(t); }
+  catch(e){ console.error(e); t.retest='requested'; toast('Failed — try again'); render(); return; }
+  lastAction=`<span class="ic">↩</span><span><b>Re-test declined for ${a.name}</b>
+    Their ${tierName(t.awardedTier!=null?t.awardedTier:0)} tier stands.</span>`;
+  toast(`Declined ${a.name}'s re-test`); render();
 }
 
 load().then(render);
