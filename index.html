@@ -857,7 +857,14 @@ function viewProfile(){
     <div class="field"><label class="eyebrow">Email</label><input class="inp" id="pf_email" type="email" value="${me.email||''}" placeholder="you@email.com"></div>
     ${isC?'':`<div class="field"><label class="eyebrow">Standard — set by your coach</label><input class="inp" value="${STD[me.standard].label}" disabled style="opacity:.55"></div>`}
     <button class="btn primary" id="pbSaveProfile" style="margin-top:4px">Save changes</button>
-  </div>`;
+  </div>
+  ${me.name==='Allen Elliott' ? `
+  <div class="tier-card" style="max-width:640px;margin-top:16px">
+    <div class="eyebrow">Data export</div>
+    <p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin:6px 0 12px">
+      Download a full backup of every profile and test session as a JSON file.</p>
+    <button class="btn" id="pbExportJson">Export JSON</button>
+  </div>` : ''}`;
 }
 
 /* ── MEMBER MANAGEMENT (coach) ── */
@@ -1612,6 +1619,18 @@ function wire(){
     try{ await sbSaveProfile(me); toast('Profile saved'); }
     catch(e){ console.error(e); toast('Save failed — try again'); }
     render();
+  });
+  on('pbExportJson',()=>{
+    const payload={ exportedAt:new Date().toISOString(), exportedBy:meP().name,
+      profiles:S.profiles, tests:S.tests };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const stamp=new Date().toISOString().slice(0,10);
+    a.href=url; a.download='ae-tier-testing-backup-'+stamp+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('Exported '+S.profiles.length+' profiles, '+S.tests.length+' tests');
   });
 
   if(view==='members'){
