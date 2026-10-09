@@ -1529,6 +1529,16 @@ function viewBoard(){
 function viewHistory(){
   const members = S.profiles.filter(p=>p.role==='member' && !p._archived);
   const unset = members.filter(p=>!p.standard);
+
+  // Coach with an empty roster — no athletes to show yet.
+  if(isCoach() && !members.length){
+    return `<div class="page-head"><div><div class="eyebrow">Coach · ${meP().name}</div>
+      <h1>Athletes</h1></div></div>
+      <div class="card"><div class="empty-state"><strong>No athletes yet</strong>
+      Once athletes sign up and pick their name, they'll show here.
+      <div style="margin-top:16px"><button class="btn sm" data-goto="members">Add an athlete</button></div></div></div>`;
+  }
+
   const pid = isCoach() ? (hWho||members[0].id) : session.id;
   const a=P(pid);
 
@@ -1804,10 +1814,12 @@ function wire(){
     const w=$('hWho'); if(w) w.onchange=e=>{hWho=e.target.value;render()};
     const q=$('hQ'); if(q) q.onchange=e=>{hQ=e.target.value;render()};
     document.querySelectorAll('[data-set-std]').forEach(b=>b.onclick=async()=>{
-      const a=P(hWho||S.profiles.find(p=>p.role==='member').id);
+      const first=S.profiles.find(p=>p.role==='member');
+      const a=P(hWho||(first&&first.id));
+      if(!a)return;
       a.standard=b.dataset.setStd;
-      await save();
-      toast(`${a.name} now tests against the ${STD[a.standard].label} standard`);
+      try{ await sbSaveProfile(a); toast(`${a.name} now tests against the ${STD[a.standard].label} standard`); }
+      catch(e){ console.error(e); toast('Save failed — try again'); }
       render();
     });
   }
