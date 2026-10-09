@@ -1030,18 +1030,20 @@ function viewLog(){
       <div class="banner ${done?'ok':'wait'}"><span class="ic">${done?'✓':'◷'}</span><span>
         <b>${done?`${P(t.approvedBy).name} signed this off on ${dateStr(t.approvedAt)}`:`Waiting on a coach — sent ${dateStr(t.submittedAt)}`}</b>
         ${done?`You cleared ${tr.counts[Math.max(tr.tier-1,0)]||tr.counts[0]} of ${tr.scorable} movements. Your tier is ${tierName(tr.tier)}.`
-              :`Your tier is provisional until a coach approves it.`}</span></div>
+              :`Your tier is provisional until a coach approves it.`}
+        ${done && !reqPending && !declined?`<span style="display:block;margin-top:12px"><button class="btn sm" id="retestReq">Request a re-test</button></span>`:''}
+        ${reqPending?`<span style="display:block;margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.08)">
+          <b style="display:block;margin-bottom:2px">Re-test requested</b>
+          Waiting for a coach to approve it — you keep your current tier until you log a new attempt.
+          <span style="display:block;margin-top:10px"><button class="btn ghost sm" id="retestCancel">Cancel request</button></span></span>`:''}
+        ${declined?`<span style="display:block;margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.08)">
+          <b style="display:block;margin-bottom:2px">Re-test declined</b>
+          A coach didn't approve a re-test this time — your ${tierName(t.awardedTier!=null?t.awardedTier:tr.tier)} tier stands. You can ask again.
+          <span style="display:block;margin-top:10px"><button class="btn sm" id="retestReq">Request a re-test</button></span></span>`:''}
+        </span></div>
       ${tierHero(tr, me, t)}
       <div class="card"><div class="card-body" style="padding-top:6px;padding-bottom:6px">${resultRows(tr,me,t)}</div></div>
-      ${!done?`<button class="btn ghost sm" id="unsubmit" style="margin-top:14px">Pull it back and edit</button>`:''}
-      ${reqPending?`<div class="banner wait" style="margin-top:14px"><span class="ic">◷</span><span>
-        <b>Re-test requested</b>Waiting for a coach to approve it. You keep your current tier until you log a new attempt.
-        </span></div>
-        <button class="btn ghost sm" id="retestCancel" style="margin-top:10px">Cancel request</button>`:''}
-      ${declined?`<div class="banner back" style="margin-top:14px"><span class="ic">↩</span><span>
-        <b>Re-test declined</b>A coach didn't approve a re-test this time. Your ${tierName(t.awardedTier!=null?t.awardedTier:tr.tier)} tier stands. You can ask again.
-        </span></div>`:''}
-      ${done && !reqPending?`<button class="btn sm" id="retestReq" style="margin-top:14px">Request a re-test</button>`:''}`;
+      ${!done?`<button class="btn ghost sm" id="unsubmit" style="margin-top:14px">Pull it back and edit</button>`:''}`;
   }
 
   if(!draft.quarter){
