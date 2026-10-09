@@ -1677,8 +1677,41 @@ function viewStandards(){
     </tr>`).join('')}</tbody></table></div>
   ${std.movements.some(m=>m.MISSING)?`<div class="banner warn" style="margin-top:16px"><span class="ic">⚠</span><span>
     <b>Bench Press is blank on the men's sheet</b>Level 1 has push-up text pasted into it, and Levels 2–4 are empty.
-    Until real standards go in, it can't count toward anyone's tier — men are effectively scored out of 7 movements, not 8.</span></div>`:''}`;
+    Until real standards go in, it can't count toward anyone's tier — men are effectively scored out of 7 movements, not 8.</span></div>`:''}
+
+  <div class="card" style="margin-top:22px">
+    <div class="card-head"><h2>How to perform each movement</h2></div>
+    <div class="card-body" style="padding-top:8px">
+      ${MOVEMENT_GUIDE.map(g=>`<div style="padding:14px 0;border-bottom:1px solid var(--line)">
+        <div style="font-weight:700;font-size:14.5px;margin-bottom:6px">${g.name}</div>
+        <p style="font-size:13.5px;color:var(--ink-2);line-height:1.55;margin-bottom:6px"><b style="color:var(--ink)">How:</b> ${g.how}</p>
+        <p style="font-size:13.5px;color:var(--ink-2);line-height:1.55"><b style="color:var(--ink)">Why:</b> ${g.why}</p>
+      </div>`).join('')}
+    </div>
+  </div>`;
 }
+
+/* Movement descriptions — verbatim from the official AE Tier Testing Standards PDF. */
+const MOVEMENT_GUIDE = [
+  { name:'Leg Press',
+    how:'Sit with your back flat on the pad, feet shoulder-width apart. Lower the platform until knees are at 90°, keeping heels flat. Press back up without locking knees.',
+    why:'This test measures lower body strength and control while keeping your hips and knees safe.' },
+  { name:'Deadlift',
+    how:'Bar starts on the floor over mid-foot. Grip firmly, brace your core, and drive through your heels. Stand tall with hips and knees locked out, shoulders back. Lower under control — no dropping.',
+    why:'The deadlift is the ultimate test of raw strength, linking your grip, core, and posterior chain together.' },
+  { name:'Push-Ups / Bench Press',
+    how:'For push-ups, start in a plank. Lower until chest touches the floor, elbows tucked at 45°, then press to full lockout. For bench, bar must touch chest each rep, and finish with elbows locked.',
+    why:'Both moves test upper body pushing strength and muscular endurance.' },
+  { name:'Inverted Row / Lat Pull Down',
+    how:'For inverted rows, body stays straight from head to heels. Pull until chest touches the bar, then lower under control. For lat pulldown, bar touches upper chest, elbows drive down, full extension at the top.',
+    why:'Measures pulling strength and balance between front and back muscles to support posture and shoulder health.' },
+  { name:'Plank',
+    how:'Elbows under shoulders, core tight, hips in line with shoulders. No sagging at the hips or raising the butt. Hold as long as possible without breaking form.',
+    why:'Core strength is the foundation for every lift and athletic movement — this proves your stability and endurance.' },
+  { name:'Cardio Countdown / Crazy 8',
+    how:'Complete all prescribed rounds with proper form. Keep movements crisp and consistent, maintaining steady breathing. Intensity is assessed by pace and ability to sustain effort.',
+    why:'This measures cardiovascular fitness, recovery ability, and mental grit under fatigue.' }
+];
 
 /* ═══════════ EVENTS ═══════════ */
 const $=id=>document.getElementById(id);
