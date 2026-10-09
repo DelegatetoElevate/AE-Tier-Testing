@@ -1046,8 +1046,10 @@ function viewLog(){
     </div>`;
   }).join('');
 
-  const tr = bw ? tierOf({entries:draft.entries, bodyweight:bw}, me) : null;
-  if(tr) tr._entries = draft.entries;
+  // Always build a tier object so the Recap · Live Summary strip is always shown,
+  // even before bodyweight is entered (first-timers see the greyed-out empty state).
+  const tr = tierOf({entries:draft.entries, bodyweight:bw||0}, me);
+  tr._entries = draft.entries;
 
   return `
   <div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)} · ${std.label} standard</div>
@@ -1263,8 +1265,9 @@ function lastTestRecap(pid, curTr){
       .map(m=>`<span class="mpip sm on0" style="opacity:.55" title="${m.name}"></span>`).join('');
     return `<div class="recap first">
       <div class="eyebrow strip-label">Recap · last test</div>
-      <div class="mpips" style="margin-bottom:10px">${greyPips}</div>
-      <p class="recap-lede" style="color:var(--steel)"><b style="color:var(--ink-2)">No previous data to show.</b> Log your first test below!</p>
+      <div class="recap-band"><span class="band ready big" style="opacity:.6"><span class="swatch"></span>Nothing logged yet</span></div>
+      <div class="mpips" style="margin:10px 0">${greyPips}</div>
+      <p class="recap-lede" style="color:var(--steel)"><b style="color:var(--ink-2)">No test logged yet.</b> Log your first test below and your history will show here.</p>
       <p class="recap-rule">Clear <b>${need} of ${total}</b> movements at a level and you earn that wristband.
         Everyone starts at Recruit — clear ${need} at Level 1 to reach <b>Rookie</b>.</p>
     </div>`;
