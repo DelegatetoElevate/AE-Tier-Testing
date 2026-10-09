@@ -1511,7 +1511,7 @@ function viewApprovals(){
       <div class="appr-head">
         <div class="who"><b>${a.name}</b><em>${qAttLabel(t)} · ${STD[a.standard].label} · ${t.bodyweight} lb · submitted ${dateStr(t.submittedAt)}</em></div>
         ${bandOf(wasT)} <span style="color:var(--steel);font-weight:700">→</span> ${bandOf(tr.tier,'big')}
-        ${moving>0?`<span class="chip up">▲ Level up</span>`:moving<0?`<span class="chip down">▼ Dropped</span>`:'<span class="chip flat">Holds</span>'}
+        ${moving>0?`<span class="chip up">▲ Level up</span>`:moving<0?`<span class="chip down">▼ Dropped</span>`:'<span class="chip flat">Same tier retained</span>'}
         <button class="btn ghost sm" data-appr="${t.profileId}">${open?'Hide':'Check'} the numbers</button>
       </div>
       ${open?`<div style="padding:4px 20px">${resultRows(tr,a,t)}</div>`:''}
