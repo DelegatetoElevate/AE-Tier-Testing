@@ -1032,6 +1032,7 @@ function viewLog(){
         ${done?`You cleared ${tr.counts[Math.max(tr.tier-1,0)]||tr.counts[0]} of ${tr.scorable} movements. Your tier is ${tierName(tr.tier)}.`
               :`Your tier is provisional until a coach approves it.`}
         ${done && !reqPending && !declined?`<span style="display:block;margin-top:12px"><button class="btn sm" id="retestReq">Request a re-test</button></span>`:''}
+        ${!done?`<span style="display:block;margin-top:12px"><button class="btn ghost sm" id="unsubmit">Pull it back and edit</button></span>`:''}
         ${reqPending?`<span style="display:block;margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.08)">
           <b style="display:block;margin-bottom:2px">Re-test requested</b>
           Waiting for a coach to approve it — you keep your current tier until you log a new attempt.
@@ -1042,8 +1043,7 @@ function viewLog(){
           <span style="display:block;margin-top:10px"><button class="btn sm" id="retestReq">Request a re-test</button></span></span>`:''}
         </span></div>
       ${tierHero(tr, me, t)}
-      <div class="card"><div class="card-body" style="padding-top:6px;padding-bottom:6px">${resultRows(tr,me,t)}</div></div>
-      ${!done?`<button class="btn ghost sm" id="unsubmit" style="margin-top:14px">Pull it back and edit</button>`:''}`;
+      <div class="card"><div class="card-body" style="padding-top:6px;padding-bottom:6px">${resultRows(tr,me,t)}</div></div>`;
   }
 
   if(!draft.quarter){
