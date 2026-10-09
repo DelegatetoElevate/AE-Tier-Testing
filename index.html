@@ -687,9 +687,10 @@ const isCoach = () => meP().role==='coach';
 const testOf = (pid,q) => S.tests.find(t=>t.profileId===pid && t.quarter===q);
 const historyOf = pid => QUARTERS.map(q=>testOf(pid,q)).filter(Boolean);
 const approvedOf = pid => historyOf(pid).filter(t=>t.status==='approved');
-const queue = () => S.tests.filter(t=>t.status==='submitted').sort((a,b)=>a.submittedAt-b.submittedAt);
+const notArchived = t => { const a=P(t.profileId); return a && !a._archived; };
+const queue = () => S.tests.filter(t=>t.status==='submitted' && notArchived(t)).sort((a,b)=>a.submittedAt-b.submittedAt);
 // Approved tests whose athlete has asked for a re-test, awaiting a coach's decision.
-const retestQueue = () => S.tests.filter(t=>t.status==='approved' && t.retest==='requested');
+const retestQueue = () => S.tests.filter(t=>t.status==='approved' && t.retest==='requested' && notArchived(t));
 const currentTier = pid => { const a=approvedOf(pid); return a.length ? tierOf(a.at(-1), P(pid)).tier : 0; };
 
 /* best-ever level per movement */
@@ -1489,7 +1490,7 @@ function viewApprovals(){
 
 /* ── LEADERBOARD — ranked by tier, then by movements cleared ── */
 function viewBoard(){
-  const rows = S.tests.filter(t=>t.quarter===bq && t.status==='approved').map(t=>{
+  const rows = S.tests.filter(t=>t.quarter===bq && t.status==='approved' && notArchived(t)).map(t=>{
     const a=P(t.profileId), tr=tierOf(t,a);
     return {a,t,tr, cleared: tr.counts[Math.max(tr.tier-1,0)], reach: tr.counts.reduce((s,c)=>s+c,0)};
   }).sort((x,y)=> y.tr.tier-x.tr.tier || y.reach-x.reach);
