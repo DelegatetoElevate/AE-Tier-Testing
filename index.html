@@ -2051,6 +2051,16 @@ async function declineRetest(pid){
   toast(`Declined ${a.name}'s re-test`); render();
 }
 
+// Stop a focused number input from hijacking the mouse wheel.
+// Keep focus (so they can keep typing) but let the wheel scroll the page instead of changing the value.
+document.addEventListener('wheel', e=>{
+  const el=e.target;
+  if(el && el.tagName==='INPUT' && el.type==='number' && el===document.activeElement){
+    el.blur();
+    requestAnimationFrame(()=>el.focus());
+  }
+}, {passive:true});
+
 load().then(render);
 </script>
 </body>
