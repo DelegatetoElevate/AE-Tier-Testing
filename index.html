@@ -879,6 +879,7 @@ function viewProfile(){
 function viewMembers(){
   const members = S.profiles.filter(p=>p.role==='member' && (pbShowArchived ? p._archived : !p._archived));
   const archivedCount = S.profiles.filter(p=>p.role==='member' && p._archived).length;
+  const activeCount = S.profiles.filter(p=>p.role==='member' && !p._archived).length;
 
   // the edit drawer, if an athlete is selected
   let drawer='';
@@ -954,7 +955,7 @@ function viewMembers(){
   <div class="card">
     <div class="card-head"><h2>${pbShowArchived?'Archived':'Active'} members</h2>
       <div class="seg2">
-        <button aria-pressed="${!pbShowArchived}" id="mmTabActive">Active</button>
+        <button aria-pressed="${!pbShowArchived}" id="mmTabActive">Active${activeCount?' ('+activeCount+')':''}</button>
         <button aria-pressed="${pbShowArchived}" id="mmTabArchived">Archived${archivedCount?' ('+archivedCount+')':''}</button>
       </div></div>
     <div class="scroll"><table><thead><tr><th>Name</th><th style="text-align:left">Gender</th><th style="text-align:left">Standard</th><th>Weight</th><th></th></tr></thead>
