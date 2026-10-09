@@ -721,9 +721,32 @@ function seed(){
 const P = id => S.profiles.find(p=>p.id===id);
 const meP = () => P(session.id);
 const isCoach = () => meP().role==='coach';
-const testOf = (pid,q) => S.tests.find(t=>t.profileId===pid && t.quarter===q);
+// Every attempt an athlete has logged for a quarter, oldest attempt first.
+const attemptsOf = (pid,q) => S.tests.filter(t=>t.profileId===pid && t.quarter===q)
+  .sort((a,b)=>(a.attempt||1)-(b.attempt||1) || (a.submittedAt||0)-(b.submittedAt||0));
+// The athlete's ACTIVE row for a quarter: a row still in progress (draft/submitted/returned)
+// if one exists, otherwise their latest approved attempt. This is what the log/approve flow uses.
+const testOf = (pid,q) => {
+  const rows = attemptsOf(pid,q);
+  if(!rows.length) return undefined;
+  const live = rows.filter(t=>t.status!=='approved');
+  if(live.length) return live[live.length-1];
+  return rows[rows.length-1];
+};
+// The BEST approved attempt for a quarter: highest tier, then most movements cleared, then latest.
+const bestApprovedOf = (pid,q) => {
+  const a=P(pid);
+  const approved = attemptsOf(pid,q).filter(t=>t.status==='approved');
+  if(!approved.length) return null;
+  return approved.map(t=>({t, tr:tierOf(t,a)}))
+    .sort((x,y)=> y.tr.tier-x.tr.tier
+      || (y.tr.counts[Math.max(y.tr.tier-1,0)]||0)-(x.tr.counts[Math.max(x.tr.tier-1,0)]||0)
+      || (y.t.approvedAt||0)-(x.t.approvedAt||0))[0].t;
+};
+// One representative row per quarter (the active one) — used where a single row per quarter is wanted.
 const historyOf = pid => QUARTERS.map(q=>testOf(pid,q)).filter(Boolean);
-const approvedOf = pid => historyOf(pid).filter(t=>t.status==='approved');
+// Best approved attempt per quarter, in quarter order — drives tier/leaderboard/"best" semantics.
+const approvedOf = pid => QUARTERS.map(q=>bestApprovedOf(pid,q)).filter(Boolean);
 const notArchived = t => { const a=P(t.profileId); return a && !a._archived; };
 const queue = () => S.tests.filter(t=>t.status==='submitted' && notArchived(t)).sort((a,b)=>a.submittedAt-b.submittedAt);
 // Approved tests whose athlete has asked for a re-test, awaiting a coach's decision.
@@ -1453,7 +1476,7 @@ function viewRecord(){
         <div class="stat-row"><span class="k">Movements cleared at L${Math.max(tr.tier,1)}</span><span class="v">${tr.counts[Math.max(tr.tier-1,0)]} / ${tr.scorable}</span></div>
         <div class="stat-row"><span class="k">Approved by</span><span class="v" style="font-size:13px">${P(latest.approvedBy)?.name||'—'}</span></div>
         <div class="stat-row"><span class="k">Approved on</span><span class="v" style="font-size:13px">${dateStr(latest.approvedAt)}</span></div>
-        <div class="stat-row"><span class="k">Tests taken</span><span class="v">${hist.length}</span></div>
+        <div class="stat-row"><span class="k">Attempts logged</span><span class="v">${S.tests.filter(x=>x.profileId===pid).length}</span></div>
       </div>
     </div>
   </div>
@@ -1533,10 +1556,13 @@ function viewApprovals(){
 
 /* ── LEADERBOARD — ranked by tier, then by movements cleared ── */
 function viewBoard(){
-  const rows = S.tests.filter(t=>t.quarter===bq && t.status==='approved' && notArchived(t)).map(t=>{
-    const a=P(t.profileId), tr=tierOf(t,a);
-    return {a,t,tr, cleared: tr.counts[Math.max(tr.tier-1,0)], reach: tr.counts.reduce((s,c)=>s+c,0)};
-  }).sort((x,y)=> y.tr.tier-x.tr.tier || y.reach-x.reach);
+  // One entry per athlete — their BEST approved attempt for the quarter (never their worst re-test).
+  const seen=new Set();
+  const rows = S.tests.filter(t=>t.quarter===bq && t.status==='approved' && notArchived(t))
+    .map(t=>t.profileId).filter(pid=>{ if(seen.has(pid))return false; seen.add(pid); return true; })
+    .map(pid=>{ const t=bestApprovedOf(pid,bq), a=P(pid), tr=tierOf(t,a);
+      return {a,t,tr, cleared: tr.counts[Math.max(tr.tier-1,0)], reach: tr.counts.reduce((s,c)=>s+c,0)};
+    }).sort((x,y)=> y.tr.tier-x.tr.tier || y.reach-x.reach);
   rows.forEach((r,i)=>r.rank=i+1);
   const waiting = S.tests.filter(t=>t.quarter===bq && t.status==='submitted').length;
 
@@ -1615,7 +1641,11 @@ function viewHistory(){
     <div class="card"><div class="empty-state"><strong>No standard assigned</strong>
       Set one above and their history can be scored.</div></div>`;
 
-  let hist=historyOf(pid).slice().reverse();
+  // Every attempt, not just one row per quarter — newest quarter first, latest attempt first.
+  let hist = S.tests.filter(t=>t.profileId===pid)
+    .sort((x,y)=> QUARTERS.indexOf(y.quarter)-QUARTERS.indexOf(x.quarter)
+      || (y.attempt||1)-(x.attempt||1)
+      || (y.submittedAt||0)-(x.submittedAt||0));
   if(hQ!=='all') hist=hist.filter(t=>t.quarter===hQ);
 
   const head=`<div class="page-head"><div><div class="eyebrow">${a.name} · ${STD[a.standard].label} standard</div>
@@ -1630,12 +1660,15 @@ function viewHistory(){
 
   if(!hist.length) return head+`<div class="card"><div class="empty-state"><strong>No tests match</strong></div></div>`;
 
+  // Which attempt counts (best approved) per quarter shown — to tag it in the list.
+  const bestIds = new Set(QUARTERS.map(q=>{const b=bestApprovedOf(pid,q);return b&&b._id;}).filter(Boolean));
   return head+`<div class="card scroll"><table>
     <thead><tr><th>Quarter</th><th>Tier</th><th>BW</th><th>Cleared</th><th>Per movement</th><th>Status</th><th>Approved by</th></tr></thead>
     <tbody>${hist.map(t=>{
       const tr=tierOf(t,a), c=P(t.approvedBy);
+      const isBest = t._id && bestIds.has(t._id);
       return `<tr>
-        <td class="name">${qLabel(t.quarter)}</td>
+        <td class="name">${qAttLabel(t)}${isBest?' <span class="chip approved" style="font-size:10px;padding:1px 6px;margin-left:4px">Counts</span>':''}</td>
         <td>${t.status==='approved'?bandOf(tr.tier):'<span class="chip flat">—</span>'}</td>
         <td class="num">${t.bodyweight}</td>
         <td class="num">${tr.counts[Math.max(tr.tier-1,0)]} / ${tr.scorable}</td>
@@ -2039,23 +2072,28 @@ async function submitTest(){
     return e && (e.seconds||e.reps||e.added||e.level);})){
     toast('Log at least one movement');return}
 
-  /* One test per athlete per quarter. A resubmission overwrites; it never duplicates. */
   const existing = testOf(session.id, OPEN_Q);
-  // A re-test the coach approved becomes the next numbered attempt on the same record.
-  const isRetest = existing && existing.retest==='granted';
+  // A coach-approved re-test starts a NEW attempt — a separate row, so the earlier
+  // attempt is kept as history. A plain resubmit (pending/returned) overwrites in place.
+  const isRetest = existing && existing.status==='approved' && existing.retest==='granted';
   const rec = {profileId:session.id, quarter:OPEN_Q, bodyweight:bw,
     entries:JSON.parse(JSON.stringify(draft.entries)), status:'submitted',
     submittedAt:Date.now(), coachNote:null, approvedBy:null, approvedAt:null,
-    retest:null,
+    returnedAt:null, retest:null,
     attempt: isRetest ? (existing.attempt||1)+1 : (existing?existing.attempt||1:1),
-    awardedTier: isRetest ? null : (existing?existing.awardedTier:null)};
-  const resubmit = !!existing;
+    awardedTier: null};
+  const resubmit = !!existing && !isRetest;
   let target;
-  if(existing){ Object.assign(existing, rec); target=existing; }
+  if(isRetest){
+    // leave the old approved attempt intact; just clear its 'granted' flag
+    existing.retest=null;
+    sbSaveTest(existing).catch(e=>console.error('clear retest flag failed',e));
+    S.tests.push(rec); target=rec;   // no _id → sbSaveTest inserts a fresh row
+  } else if(existing){ Object.assign(existing, rec); target=existing; }
   else { S.tests.push(rec); target=rec; }
 
   try{ await sbSaveTest(target); }
-  catch(e){ console.error(e); toast('Submit failed — try again'); render(); return; }
+  catch(e){ console.error(e); if(isRetest) S.tests=S.tests.filter(x=>x!==target); toast('Submit failed — try again'); render(); return; }
 
   delete S.drafts[session.id];
   sbDeleteDraft(session.id).catch(e=>console.error('draft cleanup failed',e));
