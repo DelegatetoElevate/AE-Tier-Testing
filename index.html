@@ -1122,7 +1122,7 @@ function viewLog(){
   return `
   <div class="page-head"><div><div class="eyebrow">${qLabel(OPEN_Q)}${nextAtt?` · Attempt ${nextAtt}`:''} · ${std.label} standard</div>
     <h1>${grantedRetest?'Log your re-test':'Log your test'}</h1>
-    <p>Saves as you type. Clear <b>${std.qualify} of ${std.movements.length}</b> movements at a level and that's your tier.</p></div></div>
+    <p>Clear <b>${std.qualify} of ${std.movements.length}</b> movements at a level and that's your tier.</p></div></div>
   ${grantedRetest?`<div class="banner ok"><span class="ic">✓</span><span>
     <b>Re-test approved — this is Attempt ${nextAtt}</b>
     Your last approved numbers are loaded below. Update what changed and submit again.
