@@ -97,6 +97,19 @@ nav button[aria-current="page"]{background:var(--ink);border-color:var(--ink);co
 nav button:focus-visible{outline:2px solid var(--ae);outline-offset:2px}
 nav .badge{background:var(--ae);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:1px 6px;margin-left:6px;font-family:var(--mono)}
 
+/* ── COACH MODE — red/black gradient accents so the coach portal reads distinctly ── */
+.coach-mode nav button{border-color:#F3C6C1}
+.coach-mode nav button:hover{border-color:var(--ae);color:var(--ink)}
+.coach-mode nav button[aria-current="page"]{
+  background:linear-gradient(135deg,var(--ae) 0%,#9E1B12 55%,#1A1A1A 100%);
+  border-color:transparent;color:#fff}
+.coach-mode .card{
+  border:1px solid transparent;border-radius:14px;
+  background:
+    linear-gradient(var(--surface),var(--surface)) padding-box,
+    linear-gradient(135deg,var(--ae) 0%,#8E1109 50%,#1A1A1A 100%) border-box;
+}
+
 main{max-width:1180px;margin:0 auto;padding:28px 24px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:22px}
 h1{font-size:31px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
@@ -826,6 +839,7 @@ function shell(){
     : [['log','Log a test'],['record','My tier'],['board','Leaderboard'],['history','History'],['standards','Standards'],['profile','My profile']];
   const pending = queue().length;
   return `
+  <div class="${isCoach()?'coach-mode':''}">
   <div class="topbar">
     <div class="wordmark">Tier Testing<i>.</i> <span>ALLEN ELLIOTT FITNESS</span></div>
     <div class="spacer"></div>
@@ -843,7 +857,8 @@ function shell(){
     view==='board'?viewBoard(): view==='approvals'?viewApprovals():
     view==='profile'?viewProfile(): view==='members'?viewMembers():
     view==='standards'?viewStandards(): viewHistory()
-  }</main>`;
+  }</main>
+  </div>`;
 }
 
 function viewProfile(){
