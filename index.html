@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AE Tier Testing</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -534,12 +535,96 @@ function pbRemember(id){
 let openAppr=null, noteFor=null, lastAction=null, hWho=null, hQ='all', bq=OPEN_Q, stdView='mens';
 let confirmLevelSwitch=null;   // {id, L} while a level-change confirmation is showing
 
-async function load(){
-  try{ S = JSON.parse((await window.storage.get(KEY)).value); }
-  catch(e){ S = seed(); await save(); }
-  if(!S.drafts) S.drafts={};
+/* ═══════════ SUPABASE DATA LAYER ═══════════
+   Real backend: profiles + tests live in Supabase and sync across devices.
+   S stays as the in-memory working copy the rest of the app reads from. */
+const SB_URL = 'https://qgvkrinqkablzruxpevf.supabase.co';
+const SB_KEY = 'sb_publishable_qj2Zt88Blnes_WDsg2DYzQ_tyii3JW2';
+let sb = null;
+function sbClient(){ if(!sb && window.supabase) sb = window.supabase.createClient(SB_URL, SB_KEY); return sb; }
+
+// DB row (snake_case) -> app profile (the shape the app expects)
+function rowToProfile(r){
+  return {
+    id: r.id,
+    name: r.name || ((r.first_name||'')+' '+(r.last_name||'')).trim(),
+    first_name: r.first_name, last_name: r.last_name,
+    email: r.email || '', role: r.role, standard: r.standard,
+    gender: r.gender, weight: r.weight!=null ? Number(r.weight) : undefined,
+    birthday: r.birthday,
+    _archived: !!r.archived
+  };
 }
-async function save(){ try{ await window.storage.set(KEY, JSON.stringify(S)); }catch(e){} }
+// DB test_session row -> app test
+function rowToTest(r){
+  return {
+    _id: r.id,                 // db row id (for updates)
+    profileId: r.profile_id,
+    quarter: r.quarter,
+    bodyweight: r.bodyweight!=null ? Number(r.bodyweight) : 0,
+    entries: r.entries || {},
+    status: r.status,
+    submittedAt: r.submitted_at ? new Date(r.submitted_at).getTime() : null,
+    approvedBy: r.approved_by, approvedAt: r.approved_at ? new Date(r.approved_at).getTime() : null,
+    returnedAt: r.returned_at ? new Date(r.returned_at).getTime() : null,
+    coachNote: r.coach_note, awardedTier: r.awarded_tier
+  };
+}
+
+async function load(){
+  const c = sbClient();
+  if(!c){ S = {profiles:[], tests:[], drafts:{}}; return; }
+  try{
+    const [{data:profs}, {data:tests}] = await Promise.all([
+      c.from('profiles').select('*'),
+      c.from('test_sessions').select('*')
+    ]);
+    S = {
+      profiles: (profs||[]).map(rowToProfile),
+      tests: (tests||[]).map(rowToTest),
+      drafts: (S && S.drafts) || {}
+    };
+  }catch(e){
+    console.error('load failed', e);
+    if(!S) S = {profiles:[], tests:[], drafts:{}};
+  }
+}
+
+// Push one profile to the DB (insert if new, update if existing).
+async function sbSaveProfile(p){
+  const c = sbClient(); if(!c) return;
+  const parts = (p.name||'').trim().split(' ');
+  const row = {
+    name: p.name, first_name: p.first_name || parts[0] || null,
+    last_name: p.last_name || parts.slice(1).join(' ') || null,
+    email: p.email || null, role: p.role, standard: p.standard || null,
+    gender: p.gender || null, weight: p.weight!=null ? p.weight : null,
+    birthday: p.birthday || null, archived: !!p._archived
+  };
+  if(isDbId(p.id)){ row.id = p.id; await c.from('profiles').update(row).eq('id', p.id); }
+  else { const {data} = await c.from('profiles').insert(row).select('id').single(); if(data) p.id = data.id; }
+}
+
+// Push one test to the DB.
+async function sbSaveTest(t){
+  const c = sbClient(); if(!c) return;
+  const row = {
+    profile_id: t.profileId, quarter: t.quarter,
+    bodyweight: t.bodyweight!=null ? t.bodyweight : null,
+    entries: t.entries || {}, status: t.status,
+    submitted_at: t.submittedAt ? new Date(t.submittedAt).toISOString() : null,
+    approved_by: t.approvedBy || null,
+    approved_at: t.approvedAt ? new Date(t.approvedAt).toISOString() : null,
+    returned_at: t.returnedAt ? new Date(t.returnedAt).toISOString() : null,
+    coach_note: t.coachNote || null, awarded_tier: t.awardedTier!=null ? t.awardedTier : null
+  };
+  if(t._id){ await c.from('test_sessions').update(row).eq('id', t._id); }
+  else { const {data} = await c.from('test_sessions').insert(row).select('id').single(); if(data) t._id = data.id; }
+}
+function isDbId(id){ return typeof id==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id); }
+
+// Legacy no-op: writes now go through sbSaveProfile/sbSaveTest at each call site.
+async function save(){ /* individual writes handle persistence */ }
 
 function seed(){
   let s=20260715;
@@ -625,7 +710,6 @@ function authScreen(){
   else if(pbStage==='pick') card = pbPickCard();
   else card = pbCreateCard();
   return `
-  <div class="preview-bar">◍ <b>Demo.</b> Sample data for preview — not yet connected to a live database.</div>
   <div class="auth-wrap"><div class="auth">
     <div class="mark">Tier Testing<i>.</i><span>ALLEN ELLIOTT FITNESS — HOW FIT ARE YOU REALLY?</span></div>
     ${card}
@@ -734,7 +818,6 @@ function shell(){
     : [['log','Log a test'],['record','My tier'],['board','Leaderboard'],['history','History'],['standards','Standards'],['profile','My profile']];
   const pending = queue().length;
   return `
-  <div class="preview-bar">◍ <b>Demo.</b> Sample data for preview — not yet connected to a live database.</div>
   <div class="topbar">
     <div class="wordmark">Tier Testing<i>.</i> <span>ALLEN ELLIOTT FITNESS</span></div>
     <div class="spacer"></div>
@@ -763,15 +846,15 @@ function viewProfile(){
     <p>Edit your details. ${isC?'':'Your standard is set by a coach.'}</p></div></div>
   <div class="tier-card" style="max-width:640px">
     <div class="pb-row2">
-      <div class="field"><label class="eyebrow">First name</label><input class="inp" value="${(me.name||'').split(' ')[0]||''}"></div>
-      <div class="field"><label class="eyebrow">Last name</label><input class="inp" value="${(me.name||'').split(' ').slice(1).join(' ')}"></div>
+      <div class="field"><label class="eyebrow">First name</label><input class="inp" id="pf_first" value="${(me.name||'').split(' ')[0]||''}"></div>
+      <div class="field"><label class="eyebrow">Last name</label><input class="inp" id="pf_last" value="${(me.name||'').split(' ').slice(1).join(' ')}"></div>
     </div>
     ${isC?'':`
     <div class="pb-row2">
-      <div class="field"><label class="eyebrow">Gender</label><input class="inp" value="${me.gender||''}" placeholder="—"></div>
-      <div class="field"><label class="eyebrow">Weight (lbs)</label><input class="inp" type="number" value="${me.weight||''}" placeholder="—"></div>
+      <div class="field"><label class="eyebrow">Gender</label><input class="inp" id="pf_gender" value="${me.gender||''}" placeholder="—"></div>
+      <div class="field"><label class="eyebrow">Weight (lbs)</label><input class="inp" id="pf_weight" type="number" value="${me.weight||''}" placeholder="—"></div>
     </div>`}
-    <div class="field"><label class="eyebrow">Email</label><input class="inp" type="email" value="${me.email||''}" placeholder="you@email.com"></div>
+    <div class="field"><label class="eyebrow">Email</label><input class="inp" id="pf_email" type="email" value="${me.email||''}" placeholder="you@email.com"></div>
     ${isC?'':`<div class="field"><label class="eyebrow">Standard — set by your coach</label><input class="inp" value="${STD[me.standard].label}" disabled style="opacity:.55"></div>`}
     <button class="btn primary" id="pbSaveProfile" style="margin-top:4px">Save changes</button>
   </div>`;
@@ -1518,7 +1601,18 @@ function wire(){
   document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{view=b.dataset.goto;lastAction=null;render()});
   on('signout',()=>{session=null;view='log';draft={};pbStage='code';pbPortal=null;render()});
   on('meProfile',()=>{view='profile';render()});
-  on('pbSaveProfile',()=>{toast('Profile saved (demo)')});
+  on('pbSaveProfile',async()=>{
+    const me=meP(); if(!me)return;
+    const f=($('pf_first').value||'').trim(), l=($('pf_last').value||'').trim();
+    me.name=(f+' '+l).trim();
+    if($('pf_gender')) me.gender=($('pf_gender').value||'').trim();
+    if($('pf_weight')) me.weight=+($('pf_weight').value||0)||me.weight;
+    if($('pf_email')) me.email=($('pf_email').value||'').trim();
+    const btn=$('pbSaveProfile'); if(btn){btn.disabled=true;btn.textContent='Saving…';}
+    try{ await sbSaveProfile(me); toast('Profile saved'); }
+    catch(e){ console.error(e); toast('Save failed — try again'); }
+    render();
+  });
 
   if(view==='members'){
     on('mmAdd',()=>{pbAddingMember=true;pbEditId=null;render()});
@@ -1527,22 +1621,32 @@ function wire(){
     on('mmTabArchived',()=>{pbShowArchived=true;pbEditId=null;render()});
     document.querySelectorAll('[data-mmedit]').forEach(b=>b.onclick=()=>{pbEditId=b.dataset.mmedit;pbAddingMember=false;render()});
     on('mmClose',()=>{pbEditId=null;render()});
-    document.querySelectorAll('[data-mmstd]').forEach(b=>b.onclick=()=>{const a=P(pbEditId);if(a){a.standard=b.dataset.mmstd;render()}});
-    on('mmSave',()=>{
+    document.querySelectorAll('[data-mmstd]').forEach(b=>b.onclick=async()=>{const a=P(pbEditId);if(a){a.standard=b.dataset.mmstd;render();try{await sbSaveProfile(a);}catch(e){console.error(e);}}});
+    on('mmSave',async()=>{
       const a=P(pbEditId); if(!a)return;
       const f=($('mm_first').value||'').trim(), l=($('mm_last').value||'').trim();
       a.name=(f+' '+l).trim(); a.gender=$('mm_gender').value; a.weight=+($('mm_weight').value||0)||a.weight; a.email=($('mm_email').value||'').trim();
-      toast('Saved '+a.name); pbEditId=null; render();
+      const btn=$('mmSave'); if(btn){btn.disabled=true;btn.textContent='Saving…';}
+      try{ await sbSaveProfile(a); toast('Saved '+a.name); }
+      catch(e){ console.error(e); toast('Save failed — try again'); render(); return; }
+      pbEditId=null; render();
     });
-    on('mmArchive',()=>{
+    on('mmArchive',async()=>{
       const a=P(pbEditId); if(!a)return;
-      a._archived=!a._archived; toast(a._archived?a.name+' archived':a.name+' restored'); pbEditId=null; render();
+      a._archived=!a._archived;
+      try{ await sbSaveProfile(a); toast(a._archived?a.name+' archived':a.name+' restored'); }
+      catch(e){ console.error(e); a._archived=!a._archived; toast('Save failed — try again'); render(); return; }
+      pbEditId=null; render();
     });
-    on('mmAddSave',()=>{
+    on('mmAddSave',async()=>{
       const f=($('add_first').value||'').trim(), l=($('add_last').value||'').trim(), g=$('add_gender').value, w=+($('add_weight').value||0);
       if(!f||!l||!g||!w){toast('Fill first, last, gender, weight');return;}
       const std=g==='Male'?'mens':g==='Female'?'womens':'mens';
-      S.profiles.push({id:'pb'+Date.now(),name:f+' '+l,role:'member',standard:std,gender:g,weight:w,email:($('add_email').value||'').trim()});
+      const p={name:f+' '+l,role:'member',standard:std,gender:g,weight:w,email:($('add_email').value||'').trim()};
+      const btn=$('mmAddSave'); if(btn){btn.disabled=true;btn.textContent='Adding…';}
+      try{ await sbSaveProfile(p); }
+      catch(e){ console.error(e); toast('Add failed — try again'); render(); return; }
+      S.profiles.push(p);
       toast('Added '+f+' '+l); pbAddingMember=false; render();
     });
   }
@@ -1717,20 +1821,21 @@ function pbWire(){
   }
   if(pbStage==='create'){
     on('pbCreateBack',()=>{pbStage='pick';render();});
-    on('pbCreateGo',()=>{
+    on('pbCreateGo',async()=>{
       const first=($('pbF').value||'').trim(), last=($('pbL').value||'').trim();
+      const btn=$('pbCreateGo');
       if(pbCreateMode==='coach'){
         if(!first||!last){document.getElementById('pbCreateErr').innerHTML='<div class="pb-err">Please enter your first and last name.</div>';return;}
-        const id='pb'+Date.now();
-        S.profiles.push({id, name:first+' '+last, email:($('pbEmail').value||'').trim(), role:'coach', standard:'mens'});
-        signIn(id); return;
+        if(btn){btn.disabled=true;btn.textContent='Creating…';}
+        const p={id:'pb'+Date.now(), name:first+' '+last, first_name:first, last_name:last, email:($('pbEmail').value||'').trim(), role:'coach', standard:'mens'};
+        await sbSaveProfile(p); S.profiles.push(p); signIn(p.id); return;
       }
       const gender=$('pbGender').value, weight=+($('pbWeight').value||0);
       if(!first||!last||!gender||!weight){document.getElementById('pbCreateErr').innerHTML='<div class="pb-err">Please fill in first, last, gender, and weight.</div>';return;}
+      if(btn){btn.disabled=true;btn.textContent='Creating…';}
       const standard = gender==='Male'?'mens':gender==='Female'?'womens':'mens';
-      const id='pb'+Date.now();
-      S.profiles.push({id, name:first+' '+last, email:($('pbEmail').value||'').trim(), role:'member', standard, gender, weight});
-      signIn(id);
+      const p={id:'pb'+Date.now(), name:first+' '+last, first_name:first, last_name:last, email:($('pbEmail').value||'').trim(), role:'member', standard, gender, weight, birthday:($('pbBday')&&$('pbBday').value)||null};
+      await sbSaveProfile(p); S.profiles.push(p); signIn(p.id);
     });
     return;
   }
@@ -1776,11 +1881,15 @@ async function submitTest(){
     entries:JSON.parse(JSON.stringify(draft.entries)), status:'submitted',
     submittedAt:Date.now(), coachNote:null, approvedBy:null, approvedAt:null};
   const resubmit = !!existing;
-  if(existing) Object.assign(existing, rec);
-  else S.tests.push(rec);
+  let target;
+  if(existing){ Object.assign(existing, rec); target=existing; }
+  else { S.tests.push(rec); target=rec; }
+
+  try{ await sbSaveTest(target); }
+  catch(e){ console.error(e); toast('Submit failed — try again'); render(); return; }
 
   delete S.drafts[session.id];
-  clearTimeout(timer); await save();
+  clearTimeout(timer);
   draft={};
   toast(resubmit ? 'Resubmitted — back with your coach' : 'Sent to your coach');
   render();
@@ -1793,7 +1902,8 @@ async function approve(pid){
   const tr=tierOf(t,a);
   t.awardedTier=tr.tier;
   openAppr=null;noteFor=null;
-  await save();
+  try{ await sbSaveTest(t); }
+  catch(e){ console.error(e); toast('Approve failed — try again'); render(); return; }
   lastAction=`<span class="ic">✓</span><span><b>${a.name} awarded ${tierName(tr.tier)}${tr.tier?` — ${TIERS[tr.tier-1].band} band`:''}</b>
     Cleared ${tr.counts[Math.max(tr.tier-1,0)]} of ${tr.scorable} movements at Level ${Math.max(tr.tier,1)}.
     ${tr.tier>was?`Levelled up from ${tierName(was)}.`:tr.tier<was?`Dropped from ${tierName(was)}.`:'Holds their tier.'}</span>`;
@@ -1806,7 +1916,9 @@ async function sendBack(pid){
   const t=S.tests.find(x=>x.profileId===pid&&x.status==='submitted');
   t.status='returned'; t.coachNote=note||'Have another look at your numbers.';
   t.approvedBy=session.id; t.returnedAt=Date.now();
-  noteFor=null;openAppr=null; await save();
+  noteFor=null;openAppr=null;
+  try{ await sbSaveTest(t); }
+  catch(e){ console.error(e); toast('Send-back failed — try again'); render(); return; }
   lastAction=`<span class="ic">↩</span><span><b>Sent back to ${P(pid).name}</b>
     No tier awarded. They'll see your note and can resubmit.</span>`;
   toast(`Sent back to ${P(pid).name}`); render();
