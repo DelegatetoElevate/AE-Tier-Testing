@@ -592,14 +592,19 @@ async function load(){
   const c = sbClient();
   if(!c){ S = {profiles:[], tests:[], drafts:{}}; return; }
   try{
-    const [{data:profs}, {data:tests}] = await Promise.all([
+    const [{data:profs}, {data:tests}, {data:drafts}] = await Promise.all([
       c.from('profiles').select('*'),
-      c.from('test_sessions').select('*')
+      c.from('test_sessions').select('*'),
+      c.from('drafts').select('*')
     ]);
+    const draftMap = {};
+    (drafts||[]).forEach(d=>{ draftMap[d.profile_id] = {
+      quarter:d.quarter, bodyweight:d.bodyweight!=null?Number(d.bodyweight):'',
+      entries:d.entries||{}, savedAt:d.saved_at?new Date(d.saved_at).getTime():null }; });
     S = {
       profiles: (profs||[]).map(rowToProfile),
       tests: (tests||[]).map(rowToTest),
-      drafts: (S && S.drafts) || {}
+      drafts: draftMap
     };
   }catch(e){
     console.error('load failed', e);
@@ -640,6 +645,25 @@ async function sbSaveTest(t){
   else { const {data} = await c.from('test_sessions').insert(row).select('id').single(); if(data) t._id = data.id; }
 }
 function isDbId(id){ return typeof id==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id); }
+
+// Save an athlete's in-progress draft to the DB (one row per athlete+quarter).
+async function sbSaveDraft(pid, d){
+  const c = sbClient(); if(!c || !isDbId(pid)) return;
+  const row = { profile_id:pid, quarter:d.quarter||OPEN_Q,
+    bodyweight:(d.bodyweight!==''&&d.bodyweight!=null)?d.bodyweight:null,
+    entries:d.entries||{}, saved_at:new Date(d.savedAt||Date.now()).toISOString() };
+  await c.from('drafts').upsert(row, {onConflict:'profile_id,quarter'});
+}
+// Remove a draft once it's submitted or pulled back.
+async function sbDeleteDraft(pid){
+  const c = sbClient(); if(!c || !isDbId(pid)) return;
+  await c.from('drafts').delete().eq('profile_id', pid);
+}
+// Delete a test session row (used when an athlete pulls a submission back to editing).
+async function sbDeleteTest(t){
+  const c = sbClient(); if(!c || !t || !t._id) return;
+  await c.from('test_sessions').delete().eq('id', t._id);
+}
 
 // Legacy no-op: writes now go through sbSaveProfile/sbSaveTest at each call site.
 async function save(){ /* individual writes handle persistence */ }
@@ -1790,9 +1814,13 @@ function wire(){
     on('unsubmit',async()=>{
       const t=testOf(session.id,OPEN_Q);
       draft={quarter:OPEN_Q,bodyweight:t.bodyweight,entries:JSON.parse(JSON.stringify(t.entries)),savedAt:Date.now()};
+      try{
+        await sbDeleteTest(t);                 // remove the submitted row from the DB
+        await sbSaveDraft(session.id, draft);  // keep their numbers as a synced draft
+      }catch(e){ console.error(e); toast('Couldn’t pull back — try again'); return; }
       S.drafts[session.id]=JSON.parse(JSON.stringify(draft));
       S.tests=S.tests.filter(x=>x!==t);
-      await save(); toast('Pulled back — edit away'); render();
+      toast('Pulled back — edit away'); render();
     });
     if(Number(draft.bodyweight)) rerenderRows();   // populate targets on load, before any typing
   }
@@ -1960,8 +1988,10 @@ function autosave(){
   timer=setTimeout(async()=>{
     draft.savedAt=Date.now();
     S.drafts[session.id]=JSON.parse(JSON.stringify(draft));
-    await save();
-    const e=$('autosave'); if(e) e.innerHTML=`<span class="dot saved"></span>Saved ${timeStr(draft.savedAt)}`;
+    try{ await sbSaveDraft(session.id, draft);
+      const e=$('autosave'); if(e) e.innerHTML=`<span class="dot saved"></span>Saved ${timeStr(draft.savedAt)}`;
+    }catch(err){ console.error('draft save failed',err);
+      const e=$('autosave'); if(e) e.innerHTML=`<span class="dot"></span>Save failed — retrying…`; }
   },600);
 }
 
@@ -1992,6 +2022,7 @@ async function submitTest(){
   catch(e){ console.error(e); toast('Submit failed — try again'); render(); return; }
 
   delete S.drafts[session.id];
+  sbDeleteDraft(session.id).catch(e=>console.error('draft cleanup failed',e));
   clearTimeout(timer);
   draft={};
   toast(resubmit ? 'Resubmitted — back with your coach' : 'Sent to your coach');
