@@ -743,7 +743,7 @@ function pbPickCard(){
     const cards = cs.map(p=>`
       <button class="pb-person coach" data-pbpick="${p.id}">
         <div class="av">${initials(p.name)}</div>
-        <div class="who"><b>${p.name}</b><small>coach</small></div>
+        <div class="who"><b>${p.name}</b><small>${p.name==='Allen Elliott'?'head coach':'coach'}</small></div>
         <span style="color:var(--steel);font-size:20px">›</span>
       </button>`).join('');
     return `<div class="auth-card">
@@ -832,7 +832,7 @@ function shell(){
     ${!isCoach()?bandOf(currentTier(session.id)):''}
     <div class="me ${me.role}" id="meProfile" style="cursor:pointer" title="Edit your profile">
       <span class="av">${initials(me.name)}</span>
-      <span>${me.name}<span class="role">${isCoach()?'coach':STD[me.standard].label}</span></span>
+      <span>${me.name}<span class="role">${isCoach()?(me.name==='Allen Elliott'?'head coach':'coach'):STD[me.standard].label}</span></span>
     </div>
     <button class="signout" id="signout">Sign out</button>
   </div>
